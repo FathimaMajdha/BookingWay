@@ -41,20 +41,19 @@ const HotelSearch = () => {
     try {
       setLoading(true);
       setError("");
-      
+
       console.log("Fetching hotels from API...", hotelSearchId ? `with hotelSearchId: ${hotelSearchId}` : "all hotels");
-      
+
       const params = hotelSearchId ? { hotelSearchId } : {};
-      const res = await axiosInstance.get("/Hotels", { params });
-      
+      const res = await axiosInstance.get("admin/adminhotel", { params });
+
       console.log("Raw API Response:", res);
       console.log("Response data:", res.data);
 
       let hotelsData = [];
 
-      if (res.data && typeof res.data === 'object') {
-       
-        if (res.data.hasOwnProperty('Success') || res.data.hasOwnProperty('success')) {
+      if (res.data && typeof res.data === "object") {
+        if (res.data.hasOwnProperty("Success") || res.data.hasOwnProperty("success")) {
           const success = res.data.Success ?? res.data.success;
           const data = res.data.Data ?? res.data.data;
           const message = res.data.Message ?? res.data.message;
@@ -62,8 +61,7 @@ const HotelSearch = () => {
           if (success) {
             if (Array.isArray(data)) {
               hotelsData = data;
-            } else if (data && typeof data === 'object') {
-             
+            } else if (data && typeof data === "object") {
               hotelsData = [data];
             } else {
               hotelsData = [];
@@ -72,10 +70,8 @@ const HotelSearch = () => {
             throw new Error(message || "Failed to fetch hotels");
           }
         } else if (Array.isArray(res.data)) {
-         
           hotelsData = res.data;
         } else {
-          
           hotelsData = [res.data];
         }
       } else if (Array.isArray(res.data)) {
@@ -86,13 +82,12 @@ const HotelSearch = () => {
 
       console.log("Extracted hotels data:", hotelsData);
 
-      
       const normalized = hotelsData.map((hotel, index) => {
         console.log(`Processing hotel ${index + 1}:`, {
           id: hotel.HotelId || hotel.hotelId,
           name: hotel.Hotel_Name || hotel.hotelName,
           rawPictures: hotel.Hotel_PicturesArray || hotel.Hotel_Pictures,
-          type: typeof (hotel.Hotel_PicturesArray || hotel.Hotel_Pictures)
+          type: typeof (hotel.Hotel_PicturesArray || hotel.Hotel_Pictures),
         });
 
         const processedHotel = {
@@ -107,10 +102,9 @@ const HotelSearch = () => {
           Rating: Number(hotel.Rating || hotel.rating) || 0,
           FreeCancellation: Boolean(hotel.FreeCancellation || hotel.freeCancellation),
           BreakfastIncluded: Boolean(hotel.BreakfastIncluded || hotel.breakfastIncluded),
-          selectedImage: null
+          selectedImage: null,
         };
 
- 
         if (processedHotel.Hotel_Pictures.length > 0) {
           processedHotel.selectedImage = processedHotel.Hotel_Pictures[0];
         }
@@ -120,17 +114,15 @@ const HotelSearch = () => {
       });
 
       console.log("Final normalized hotels:", normalized);
-      
+
       setHotels(normalized);
       setAllHotels(normalized);
-
     } catch (err) {
       console.error("Error fetching hotels:", err);
-      
+
       let errorMessage = "Failed to load hotels. Please try again later.";
-      
+
       if (err.response) {
-      
         const responseData = err.response.data;
         if (responseData && (responseData.Message || responseData.message)) {
           errorMessage = responseData.Message || responseData.message;
@@ -138,13 +130,11 @@ const HotelSearch = () => {
           errorMessage = `Server error: ${err.response.status} - ${err.response.statusText}`;
         }
       } else if (err.request) {
-        
         errorMessage = "Network error: Unable to connect to server. Please check your connection.";
       } else {
-        
         errorMessage = `Error: ${err.message}`;
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -152,117 +142,110 @@ const HotelSearch = () => {
   };
 
   const processHotelImages = (hotel) => {
-    
     if (hotel.Hotel_PicturesArray || hotel.hotel_PicturesArray) {
       const pictures = hotel.Hotel_PicturesArray || hotel.hotel_PicturesArray;
       try {
         if (Array.isArray(pictures)) {
           const urls = pictures
-            .filter(url => url && typeof url === 'string' && url.trim() !== '')
-            .map(url => url.trim());
+            .filter((url) => url && typeof url === "string" && url.trim() !== "")
+            .map((url) => url.trim());
           if (urls.length > 0) return urls;
-        } else if (typeof pictures === 'string') {
-          
+        } else if (typeof pictures === "string") {
           try {
             const parsed = JSON.parse(pictures);
             if (Array.isArray(parsed)) {
               const urls = parsed
-                .map(item => {
-                  if (typeof item === 'string') return item.trim();
-                  if (item && typeof item === 'object') return item.ImageUrl || item.url || item.image || null;
+                .map((item) => {
+                  if (typeof item === "string") return item.trim();
+                  if (item && typeof item === "object") return item.ImageUrl || item.url || item.image || null;
                   return null;
                 })
-                .filter(url => url && url.trim() !== '');
+                .filter((url) => url && url.trim() !== "");
               if (urls.length > 0) return urls;
             }
           } catch (e) {
-           
-            if (pictures.includes(',')) {
-              const urls = pictures.split(',')
-                .map(url => url.trim())
-                .filter(url => url && url.trim() !== '');
+            if (pictures.includes(",")) {
+              const urls = pictures
+                .split(",")
+                .map((url) => url.trim())
+                .filter((url) => url && url.trim() !== "");
               if (urls.length > 0) return urls;
             }
-            
-            if (pictures.trim() !== '') {
+
+            if (pictures.trim() !== "") {
               return [pictures.trim()];
             }
           }
         }
       } catch (error) {
-        console.warn('Error processing Hotel_PicturesArray:', error);
+        console.warn("Error processing Hotel_PicturesArray:", error);
       }
     }
 
-    
     if (hotel.Hotel_Pictures || hotel.hotel_Pictures) {
       const pictures = hotel.Hotel_Pictures || hotel.hotel_Pictures;
       try {
         if (Array.isArray(pictures)) {
           const urls = pictures
-            .filter(url => url && typeof url === 'string' && url.trim() !== '')
-            .map(url => url.trim());
+            .filter((url) => url && typeof url === "string" && url.trim() !== "")
+            .map((url) => url.trim());
           if (urls.length > 0) return urls;
-        } else if (typeof pictures === 'string') {
-          
+        } else if (typeof pictures === "string") {
           try {
             const parsed = JSON.parse(pictures);
             if (Array.isArray(parsed)) {
               const urls = parsed
-                .map(item => {
-                  if (typeof item === 'string') return item.trim();
-                  if (item && typeof item === 'object') return item.ImageUrl || item.url || item.image || null;
+                .map((item) => {
+                  if (typeof item === "string") return item.trim();
+                  if (item && typeof item === "object") return item.ImageUrl || item.url || item.image || null;
                   return null;
                 })
-                .filter(url => url && url.trim() !== '');
+                .filter((url) => url && url.trim() !== "");
               if (urls.length > 0) return urls;
             }
           } catch (e) {
-            
-            if (pictures.includes(',')) {
-              const urls = pictures.split(',')
-                .map(url => url.trim())
-                .filter(url => url && url.trim() !== '');
+            if (pictures.includes(",")) {
+              const urls = pictures
+                .split(",")
+                .map((url) => url.trim())
+                .filter((url) => url && url.trim() !== "");
               if (urls.length > 0) return urls;
             }
-           
-            if (pictures.trim() !== '') {
+
+            if (pictures.trim() !== "") {
               return [pictures.trim()];
             }
           }
         }
       } catch (error) {
-        console.warn('Error processing Hotel_Pictures:', error);
+        console.warn("Error processing Hotel_Pictures:", error);
       }
     }
 
-    
-    const otherImageProps = ['Images', 'ImageUrls', 'Hotel_Image', 'MainImage', 'images', 'imageUrls'];
+    const otherImageProps = ["Images", "ImageUrls", "Hotel_Image", "MainImage", "images", "imageUrls"];
     for (const prop of otherImageProps) {
       if (hotel[prop]) {
         try {
           if (Array.isArray(hotel[prop])) {
             const urls = hotel[prop]
-              .filter(url => url && typeof url === 'string' && url.trim() !== '')
-              .map(url => url.trim());
+              .filter((url) => url && typeof url === "string" && url.trim() !== "")
+              .map((url) => url.trim());
             if (urls.length > 0) return urls;
-          } else if (typeof hotel[prop] === 'string') {
-           
+          } else if (typeof hotel[prop] === "string") {
             try {
               const parsed = JSON.parse(hotel[prop]);
               if (Array.isArray(parsed)) {
                 const urls = parsed
-                  .map(item => {
-                    if (typeof item === 'string') return item.trim();
-                    if (item && typeof item === 'object') return item.ImageUrl || item.url || item.image || null;
+                  .map((item) => {
+                    if (typeof item === "string") return item.trim();
+                    if (item && typeof item === "object") return item.ImageUrl || item.url || item.image || null;
                     return null;
                   })
-                  .filter(url => url && url.trim() !== '');
+                  .filter((url) => url && url.trim() !== "");
                 if (urls.length > 0) return urls;
               }
             } catch (e) {
-              
-              if (hotel[prop].trim() !== '') {
+              if (hotel[prop].trim() !== "") {
                 return [hotel[prop].trim()];
               }
             }
@@ -273,33 +256,25 @@ const HotelSearch = () => {
       }
     }
 
-    
-    console.warn('No valid images found for hotel:', hotel.HotelId || hotel.hotelId, hotel.Hotel_Name || hotel.hotelName);
+    console.warn("No valid images found for hotel:", hotel.HotelId || hotel.hotelId, hotel.Hotel_Name || hotel.hotelName);
     return ["https://via.placeholder.com/300x200?text=No+Image+Available"];
   };
 
   const handleSearchSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!search.city.trim()) {
-      
       await fetchHotels();
       return;
     }
 
-    
     await fetchHotels();
-    
-    const filteredHotels = allHotels.filter((h) => 
-      (h.City || "").toLowerCase().includes(search.city.toLowerCase().trim())
-    );
 
-    console.log(
-      "Search city:",
-      search.city,
-      "Available hotel cities:",
-      [...new Set(allHotels.map((h) => h.City).filter(Boolean))]
-    );
+    const filteredHotels = allHotels.filter((h) => (h.City || "").toLowerCase().includes(search.city.toLowerCase().trim()));
+
+    console.log("Search city:", search.city, "Available hotel cities:", [
+      ...new Set(allHotels.map((h) => h.City).filter(Boolean)),
+    ]);
 
     if (filteredHotels.length === 0) {
       setError(`No hotels found in "${search.city}". Try another city.`);
@@ -324,14 +299,12 @@ const HotelSearch = () => {
 
   const filteredHotels = useMemo(() => {
     let list = [...hotels];
-   
-    
+
     list = list.filter((h) => h.Price <= filters.maxPrice);
     list = list.filter((h) => h.Rating >= filters.minRating);
     if (filters.freeCancellation) list = list.filter((h) => h.FreeCancellation);
     if (filters.breakfastIncluded) list = list.filter((h) => h.BreakfastIncluded);
 
-    
     if (sortBy === "priceAsc") list.sort((a, b) => a.Price - b.Price);
     if (sortBy === "priceDesc") list.sort((a, b) => b.Price - a.Price);
     if (sortBy === "ratingDesc") list.sort((a, b) => b.Rating - a.Rating);
@@ -345,15 +318,11 @@ const HotelSearch = () => {
   );
 
   const handleImageSelect = (hotelId, imageUrl) => {
-    setHotels(prev => 
-      prev.map(hotel => 
-        hotel.HotelId === hotelId ? { ...hotel, selectedImage: imageUrl } : hotel
-      )
-    );
+    setHotels((prev) => prev.map((hotel) => (hotel.HotelId === hotelId ? { ...hotel, selectedImage: imageUrl } : hotel)));
   };
 
   const resetFilters = () => {
-    fetchHotels(); 
+    fetchHotels();
     setFilters({
       maxPrice: 30000,
       minRating: 0,
@@ -361,7 +330,7 @@ const HotelSearch = () => {
       breakfastIncluded: false,
       amenities: [],
     });
-    setSearch(prev => ({ ...prev, city: "" }));
+    setSearch((prev) => ({ ...prev, city: "" }));
     setError("");
   };
 
@@ -402,7 +371,7 @@ const HotelSearch = () => {
                 className="form-control"
                 value={search.checkIn}
                 onChange={(e) => setSearch((p) => ({ ...p, checkIn: e.target.value }))}
-                min={new Date().toISOString().split('T')[0]}
+                min={new Date().toISOString().split("T")[0]}
               />
             </div>
             <div className="col-md-2">
@@ -412,7 +381,7 @@ const HotelSearch = () => {
                 className="form-control"
                 value={search.checkOut}
                 onChange={(e) => setSearch((p) => ({ ...p, checkOut: e.target.value }))}
-                min={search.checkIn || new Date().toISOString().split('T')[0]}
+                min={search.checkIn || new Date().toISOString().split("T")[0]}
               />
             </div>
 
@@ -427,7 +396,9 @@ const HotelSearch = () => {
             </div>
 
             <div className="col-md-1 d-grid">
-              <button type="submit" className="btn bg-white text-dark">Search</button>
+              <button type="submit" className="btn bg-white text-dark">
+                Search
+              </button>
             </div>
           </div>
 
@@ -506,26 +477,18 @@ const HotelSearch = () => {
           )}
         </form>
 
-       
         {error && (
           <div className="alert alert-danger mb-4" style={{ maxWidth: 1200 }}>
             <strong>Error:</strong> {error}
-            <button 
-              className="btn btn-sm btn-outline-danger ms-3" 
-              onClick={() => fetchHotels()}
-            >
+            <button className="btn btn-sm btn-outline-danger ms-3" onClick={() => fetchHotels()}>
               Retry
             </button>
-            <button 
-              className="btn btn-sm btn-outline-secondary ms-2" 
-              onClick={resetFilters}
-            >
+            <button className="btn btn-sm btn-outline-secondary ms-2" onClick={resetFilters}>
               Show All Hotels
             </button>
           </div>
         )}
 
-       
         <div className="mb-4" style={{ marginLeft: "100px" }}>
           <div className="row">
             {[
@@ -533,7 +496,8 @@ const HotelSearch = () => {
                 id: 1,
                 title: "Get 15% Off on Dubai Stays",
                 description: "Members only deal on 3-night stays.",
-                image: "https://thfvnext.bing.com/th/id/OIP.Zis2cXdglxbZemS3QNsdZQHaE8?o=7&cb=thfvnextrm=3&rs=1&pid=ImgDetMain&o=7&rm=3",
+                image:
+                  "https://thfvnext.bing.com/th/id/OIP.Zis2cXdglxbZemS3QNsdZQHaE8?o=7&cb=thfvnextrm=3&rs=1&pid=ImgDetMain&o=7&rm=3",
               },
               {
                 id: 2,
@@ -545,12 +509,18 @@ const HotelSearch = () => {
                 id: 3,
                 title: "Suite Upgrade Weekend",
                 description: "Complimentary upgrade on suites in NYC.",
-                image: "https://tse3.mm.bing.net/th/id/OIP.SzzrYZJlfSF3t2NKYLSdWwHaFj?cb=thfvnext&pid=ImgDet&w=474&h=355&rs=1&o=7&rm=3",
+                image:
+                  "https://tse3.mm.bing.net/th/id/OIP.SzzrYZJlfSF3t2NKYLSdWwHaFj?cb=thfvnext&pid=ImgDet&w=474&h=355&rs=1&o=7&rm=3",
               },
             ].map((p) => (
               <div className="col-md-4 mb-3" key={p.id}>
                 <div className="card shadow-sm border-0 h-100">
-                  <img src={p.image} className="card-img-top" alt={p.title} style={{ height: "200px", objectFit: "cover" }} />
+                  <img
+                    src={p.image}
+                    className="card-img-top"
+                    alt={p.title}
+                    style={{ height: "200px", objectFit: "cover" }}
+                  />
                   <div className="card-body">
                     <h5 className="card-title">{p.title}</h5>
                     <p className="card-text text-muted">{p.description}</p>
@@ -562,7 +532,6 @@ const HotelSearch = () => {
         </div>
 
         <div className="row" style={{ marginLeft: "-110px" }}>
-         
           <div className="col-md-3">
             <div className="border rounded p-3 shadow-sm bg-light">
               <h5>Filters</h5>
@@ -633,7 +602,6 @@ const HotelSearch = () => {
             </div>
           </div>
 
-         
           <div className="col-md-9">
             {loading && (
               <div className="text-center py-4">
@@ -643,98 +611,95 @@ const HotelSearch = () => {
                 <p className="mt-2">Loading hotels...</p>
               </div>
             )}
-            
+
             {!loading && error && filteredHotels.length === 0 && (
               <div className="text-center py-4">
                 <p className="text-danger">{error}</p>
               </div>
             )}
-            
+
             {!loading && !error && filteredHotels.length === 0 && (
               <div className="text-center py-4">
                 <p className="text-muted">No hotels match your filters.</p>
-                <button 
-                  className="btn btn-primary mt-2" 
-                  onClick={resetFilters}
-                >
+                <button className="btn btn-primary mt-2" onClick={resetFilters}>
                   Reset Filters
                 </button>
               </div>
             )}
 
-            {!loading && !error && filteredHotels.map((h) => (
-              <div key={h.HotelId} className="border rounded shadow-sm mb-3 p-3">
-                <div className="row g-3 align-items-center">
-                  <div className="col-md-5">
-                    <img
-                      src={h.selectedImage || h.Hotel_Pictures[0]}
-                      alt={h.Hotel_Name}
-                      className="img-fluid rounded mb-2"
-                      style={{ maxHeight: "250px", objectFit: "cover", width: "100%" }}
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/300x200?text=Image+Not+Found";
-                      }}
-                    />
-                    
-                    {h.Hotel_Pictures.length > 1 && (
-                      <div className="d-flex flex-wrap gap-2">
-                        {h.Hotel_Pictures.map((pic, idx) => (
-                          <img
-                            key={idx}
-                            src={pic}
-                            alt={`Thumbnail ${idx + 1}`}
-                            className="rounded border"
-                            style={{
-                              width: "60px",
-                              height: "60px",
-                              objectFit: "cover",
-                              cursor: "pointer",
-                              border: h.selectedImage === pic ? "2px solid #dc3545" : "1px solid #ddd",
-                            }}
-                            onClick={() => handleImageSelect(h.HotelId, pic)}
-                            onError={(e) => {
-                              e.target.src = "https://via.placeholder.com/60x60?text=X";
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
+            {!loading &&
+              !error &&
+              filteredHotels.map((h) => (
+                <div key={h.HotelId} className="border rounded shadow-sm mb-3 p-3">
+                  <div className="row g-3 align-items-center">
+                    <div className="col-md-5">
+                      <img
+                        src={h.selectedImage || h.Hotel_Pictures[0]}
+                        alt={h.Hotel_Name}
+                        className="img-fluid rounded mb-2"
+                        style={{ maxHeight: "250px", objectFit: "cover", width: "100%" }}
+                        onError={(e) => {
+                          e.target.src = "https://via.placeholder.com/300x200?text=Image+Not+Found";
+                        }}
+                      />
 
-                  <div
-                    className="col-md-5"
-                    style={{ cursor: "pointer" }}
-                    onClick={() => navigate(`/property/${h.HotelId}`, { state: { hotel: h } })}
-                  >
-                    <h5 style={{ marginTop: "0px" }}>{h.Hotel_Name}</h5>
-                    <div className="text-muted">
-                      {h.Nearest_Location} • {h.City || ""}
-                    </div>
-                    <div className="mt-2">
-                      <span className="badge bg-success">{Number(h.Rating).toFixed(1)} ★</span>
-                      {h.FreeCancellation && <span className="badge bg-info text-dark ms-2">Free Cancellation</span>}
-                      {h.BreakfastIncluded && <span className="badge bg-warning text-dark ms-2">Breakfast</span>}
-                    </div>
-                    <div className="mt-2">
-                      {h.Hotel_Description && (
-                        <p className="text-muted small">{h.Hotel_Description}</p>
+                      {h.Hotel_Pictures.length > 1 && (
+                        <div className="d-flex flex-wrap gap-2">
+                          {h.Hotel_Pictures.map((pic, idx) => (
+                            <img
+                              key={idx}
+                              src={pic}
+                              alt={`Thumbnail ${idx + 1}`}
+                              className="rounded border"
+                              style={{
+                                width: "60px",
+                                height: "60px",
+                                objectFit: "cover",
+                                cursor: "pointer",
+                                border: h.selectedImage === pic ? "2px solid #dc3545" : "1px solid #ddd",
+                              }}
+                              onClick={() => handleImageSelect(h.HotelId, pic)}
+                              onError={(e) => {
+                                e.target.src = "https://via.placeholder.com/60x60?text=X";
+                              }}
+                            />
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="col-md-2 text-end">
-                    <h4>₹{h.Price?.toLocaleString()}</h4>
-                    <small className="text-muted">per night</small>
-                    <button 
-                      className="btn btn-primary mt-2 w-100"
+                    <div
+                      className="col-md-5"
+                      style={{ cursor: "pointer" }}
                       onClick={() => navigate(`/property/${h.HotelId}`, { state: { hotel: h } })}
                     >
-                      View Details
-                    </button>
+                      <h5 style={{ marginTop: "0px" }}>{h.Hotel_Name}</h5>
+                      <div className="text-muted">
+                        {h.Nearest_Location} • {h.City || ""}
+                      </div>
+                      <div className="mt-2">
+                        <span className="badge bg-success">{Number(h.Rating).toFixed(1)} ★</span>
+                        {h.FreeCancellation && <span className="badge bg-info text-dark ms-2">Free Cancellation</span>}
+                        {h.BreakfastIncluded && <span className="badge bg-warning text-dark ms-2">Breakfast</span>}
+                      </div>
+                      <div className="mt-2">
+                        {h.Hotel_Description && <p className="text-muted small">{h.Hotel_Description}</p>}
+                      </div>
+                    </div>
+
+                    <div className="col-md-2 text-end">
+                      <h4>₹{h.Price?.toLocaleString()}</h4>
+                      <small className="text-muted">per night</small>
+                      <button
+                        className="btn btn-primary mt-2 w-100"
+                        onClick={() => navigate(`/property/${h.HotelId}`, { state: { hotel: h } })}
+                      >
+                        View Details
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </div>

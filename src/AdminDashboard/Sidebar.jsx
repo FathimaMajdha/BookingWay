@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 const Sidebar = () => {
   return (
-    <div className="d-flex flex-column p-3 bg-dark text-white " style={{ width: "250px",height:"2000px" }}>
+    <div className="d-flex flex-column p-3 bg-dark text-white " style={{ width: "250px", height: "2000px" }}>
       <h4 className="text-center mb-4">Admin</h4>
       <ul className="nav nav-pills flex-column mb-auto ">
         <li className="nav-item ">
@@ -26,12 +26,12 @@ const Sidebar = () => {
             Hotel
           </Link>
         </li>
-         <li>
+        <li>
           <Link to="/book" className="nav-link text-white">
             Bookings
           </Link>
         </li>
-         <li>
+        <li>
           <Link to="/" className="nav-link text-white">
             LogOut
           </Link>

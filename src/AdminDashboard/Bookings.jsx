@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import axiosInstance from "../api/axiosInstance";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Bookings = () => {
   const [users, setUsers] = useState([]);
@@ -11,11 +11,11 @@ const Bookings = () => {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const res = await axiosInstance.get("/AdminBooking");
+        const res = await axiosInstance.get("/admin/AdminBooking");
         console.log("Bookings API response:", res.data);
-        
+
         let bookingsData = [];
-     
+
         if (res.data && res.data.Data && Array.isArray(res.data.Data)) {
           bookingsData = res.data.Data;
         } else if (res.data && Array.isArray(res.data)) {
@@ -25,10 +25,11 @@ const Bookings = () => {
           bookingsData = [];
         }
 
-        const confirmedBookings = bookingsData.filter(booking => 
-          booking.PaymentStatus === "Paid" || 
-          booking.PaymentStatus === "Confirmed" ||
-          booking.BookingStatus === "Confirmed"
+        const confirmedBookings = bookingsData.filter(
+          (booking) =>
+            booking.PaymentStatus === "Paid" ||
+            booking.PaymentStatus === "Confirmed" ||
+            booking.BookingStatus === "Confirmed"
         );
 
         console.log("Confirmed bookings:", confirmedBookings);
@@ -36,10 +37,8 @@ const Bookings = () => {
         const userMap = {};
 
         confirmedBookings.forEach((b) => {
-         
           if (!b.UserAuthId) return;
 
-          
           if (!userMap[b.UserAuthId]) {
             userMap[b.UserAuthId] = {
               id: b.UserAuthId,
@@ -49,7 +48,6 @@ const Bookings = () => {
             };
           }
 
-         
           const bookingObj = {
             bookingId: b.MyBookingId || b.BookingId || `temp-${Date.now()}`,
             bookingType: b.BookingType || b.Type || "Unknown",
@@ -75,7 +73,7 @@ const Bookings = () => {
         const usersArray = Object.values(userMap);
         console.log("Processed users with confirmed bookings:", usersArray);
         setUsers(usersArray);
-        
+
         if (usersArray.length > 0) {
           toast.success("Bookings fetched successfully!", {
             position: "top-right",
@@ -89,7 +87,7 @@ const Bookings = () => {
       } catch (err) {
         console.error("Error fetching bookings:", err);
         setUsers([]);
-       
+
         toast.error("Failed to fetch bookings!", {
           position: "top-right",
           autoClose: 3000,
@@ -108,31 +106,29 @@ const Bookings = () => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      "Paid": { class: "bg-success", text: "Paid" },
-      "Confirmed": { class: "bg-success", text: "Confirmed" },
-      "Pending": { class: "bg-warning", text: "Pending" },
-      "Cancelled": { class: "bg-danger", text: "Cancelled" },
-      "Refunded": { class: "bg-info", text: "Refunded" }
+      Paid: { class: "bg-success", text: "Paid" },
+      Confirmed: { class: "bg-success", text: "Confirmed" },
+      Pending: { class: "bg-warning", text: "Pending" },
+      Cancelled: { class: "bg-danger", text: "Cancelled" },
+      Refunded: { class: "bg-info", text: "Refunded" },
     };
-    
+
     const config = statusConfig[status] || { class: "bg-secondary", text: status };
     return <span className={`badge ${config.class} text-white`}>{config.text}</span>;
   };
 
-  
   const getTypeIcon = (type) => {
     return type === "Flight" ? "✈️" : type === "Hotel" ? "🏨" : "📋";
   };
 
-  
   const formatDate = (dateString) => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch {
       return "Invalid Date";
@@ -142,8 +138,7 @@ const Bookings = () => {
   return (
     <div className="d-flex bg-light">
       <Sidebar />
-      
-     
+
       <ToastContainer
         position="top-right"
         autoClose={3000}
@@ -156,19 +151,16 @@ const Bookings = () => {
         pauseOnHover
         theme="light"
       />
-      
-      <div className="container-fluid pt-5" style={{ marginLeft: "30px", width: "1000px" }}>
-        <h1 className="h3 mb-4 border-bottom pb-2 text-dark fw-bold">
-          All User Bookings
-        </h1>
 
-       
+      <div className="container-fluid pt-5" style={{ marginLeft: "30px", width: "1000px" }}>
+        <h1 className="h3 mb-4 border-bottom pb-2 text-dark fw-bold">All User Bookings</h1>
+
         {!loading && users.length > 0 && (
           <div className="row mb-4">
             <div className="col-md-3">
               <div className="card bg-primary text-white">
                 <div className="card-body">
-                  <h5 className="card-title">Total Users</h5>
+                  <h5 className="card-title">Total Users Booked</h5>
                   <h2 className="card-text">{users.length}</h2>
                 </div>
               </div>
@@ -177,9 +169,7 @@ const Bookings = () => {
               <div className="card bg-success text-white">
                 <div className="card-body">
                   <h5 className="card-title">Total Bookings</h5>
-                  <h2 className="card-text">
-                    {users.reduce((total, user) => total + user.bookings.length, 0)}
-                  </h2>
+                  <h2 className="card-text">{users.reduce((total, user) => total + user.bookings.length, 0)}</h2>
                 </div>
               </div>
             </div>
@@ -188,8 +178,9 @@ const Bookings = () => {
                 <div className="card-body">
                   <h5 className="card-title">Flight Bookings</h5>
                   <h2 className="card-text">
-                    {users.reduce((total, user) => 
-                      total + user.bookings.filter(b => b.bookingType === "Flight").length, 0
+                    {users.reduce(
+                      (total, user) => total + user.bookings.filter((b) => b.bookingType === "Flight").length,
+                      0
                     )}
                   </h2>
                 </div>
@@ -200,8 +191,9 @@ const Bookings = () => {
                 <div className="card-body">
                   <h5 className="card-title">Hotel Bookings</h5>
                   <h2 className="card-text">
-                    {users.reduce((total, user) => 
-                      total + user.bookings.filter(b => b.bookingType === "Hotel").length, 0
+                    {users.reduce(
+                      (total, user) => total + user.bookings.filter((b) => b.bookingType === "Hotel").length,
+                      0
                     )}
                   </h2>
                 </div>
@@ -242,7 +234,7 @@ const Bookings = () => {
                         <div className="d-flex justify-content-between align-items-start mb-3">
                           <div>
                             <h6 className="fw-bold mb-1">
-                              {getTypeIcon(booking.bookingType)} {booking.bookingType} Booking 
+                              {getTypeIcon(booking.bookingType)} {booking.bookingType} Booking
                               <span className="text-muted"> #{index + 1}</span>
                             </h6>
                             <small className="text-muted">Booking ID: {booking.bookingId}</small>
@@ -250,14 +242,11 @@ const Bookings = () => {
                           <div className="text-end">
                             {getStatusBadge(booking.paymentStatus)}
                             <div>
-                              <small className="text-muted">
-                                {formatDate(booking.bookingDate)}
-                              </small>
+                              <small className="text-muted">{formatDate(booking.bookingDate)}</small>
                             </div>
                           </div>
                         </div>
 
-                       
                         {booking.bookingType === "Flight" && (
                           <div className="mb-3">
                             <div className="row">
@@ -286,7 +275,6 @@ const Bookings = () => {
                           </div>
                         )}
 
-                       
                         {booking.bookingType === "Hotel" && (
                           <div className="mb-3">
                             <div className="row">
@@ -315,7 +303,6 @@ const Bookings = () => {
                           </div>
                         )}
 
-                       
                         <div className="border-top pt-3">
                           <div className="row">
                             <div className="col-6">

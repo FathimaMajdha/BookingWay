@@ -31,12 +31,6 @@ const PropertyInfo = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const roomImages = [
-    "https://picsum.photos/400/300?random=10",
-    "https://picsum.photos/400/300?random=11",
-    "https://picsum.photos/400/300?random=12",
-  ];
-
   const [activeTab, setActiveTab] = useState("rooms");
   const [isScrolling, setIsScrolling] = useState(false);
 
@@ -90,23 +84,21 @@ const PropertyInfo = () => {
   const handleApiResponse = (response, fallback = []) => {
     if (!response.data) return fallback;
 
-   
-    if (response.data.hasOwnProperty('Success') || response.data.hasOwnProperty('success')) {
+    if (response.data.hasOwnProperty("Success") || response.data.hasOwnProperty("success")) {
       const success = response.data.Success ?? response.data.success;
       const data = response.data.Data ?? response.data.data;
 
       if (success && data) {
-      
         return Array.isArray(data) ? data : [data];
       } else {
-        console.error('API Error:', response.data.Message || response.data.message || 'Unknown error');
+        console.error("API Error:", response.data.Message || response.data.message || "Unknown error");
         return fallback;
       }
     }
-   
+
     if (Array.isArray(response.data)) {
       return response.data;
-    } else if (response.data && typeof response.data === 'object') {
+    } else if (response.data && typeof response.data === "object") {
       return [response.data];
     }
 
@@ -122,17 +114,25 @@ const PropertyInfo = () => {
         setError("");
 
         try {
-          const roomsRes = await axiosInstance.get(`/HotelRoom/${id}`);
+          const roomsRes = await axiosInstance.get(`/admin/AdminHotelRoom?hotelId=${id}`);
           console.log("Rooms API Response:", roomsRes.data);
           const roomsData = handleApiResponse(roomsRes, []);
           setRooms(roomsData);
         } catch (err) {
           console.error("Error fetching rooms:", err);
-          setRooms([]);
+
+          try {
+            const roomsRes = await axiosInstance.get(`/admin/AdminHotelRoom?hotelId=${id}`);
+            const roomsData = handleApiResponse(roomsRes, []);
+            setRooms(roomsData);
+          } catch (fallbackErr) {
+            console.error("Fallback rooms fetch failed:", fallbackErr);
+            setRooms([]);
+          }
         }
 
         try {
-          const amenitiesRes = await axiosInstance.get(`/Amenity`);
+          const amenitiesRes = await axiosInstance.get(`/admin/AdminAmenity?hotelId=${id}`);
           console.log("Amenities API Response:", amenitiesRes.data);
           const amenitiesData = handleApiResponse(amenitiesRes, []);
           setAmenities(amenitiesData);
@@ -142,35 +142,39 @@ const PropertyInfo = () => {
         }
 
         try {
-          const similarRes = await axiosInstance.get(`/SimilarProperty/hotel/${id}`);
+          const similarRes = await axiosInstance.get(`/admin/AdminSimilarProperty/similar/${id}`);
           console.log("Similar Properties API Response:", similarRes.data);
-          const similarData = handleApiResponse(similarRes, []);
-          setSimilarProperties(similarData);
+
+          if (similarRes.data.Success && similarRes.data.Data) {
+            setSimilarProperties(similarRes.data.Data);
+          } else {
+            setSimilarProperties([]);
+          }
         } catch (err) {
           console.error("Error fetching similar properties:", err);
           setSimilarProperties([]);
         }
 
         try {
-          const diningRes = await axiosInstance.get(`/HotelDining/${id}`);
+          const diningRes = await axiosInstance.get(`/admin/AdminHotelDining?hotelId=${id}`);
           console.log("Dining API Response:", diningRes.data);
-          
+
           if (diningRes.data) {
             if (diningRes.data.Success || diningRes.data.success) {
-              setDining(diningRes.data.Data || diningRes.data.data);
+              const diningData = diningRes.data.Data || diningRes.data.data;
+              setDining(Array.isArray(diningData) ? diningData[0] : diningData);
             } else {
-              setDining(null);
+              setDining(Array.isArray(diningRes.data) ? diningRes.data[0] : diningRes.data);
             }
           } else {
-            setDining(diningRes.data);
+            setDining(null);
           }
         } catch (err) {
           console.error("Error fetching dining:", err);
           setDining(null);
         }
-
         try {
-          const policyRes = await axiosInstance.get(`/HotelPolicy/${id}`);
+          const policyRes = await axiosInstance.get(`/admin/AdminHotelPolicy?hotelId=${id}`);
           console.log("Policies API Response:", policyRes.data);
           const policiesData = handleApiResponse(policyRes, []);
           setPolicies(policiesData);
@@ -179,9 +183,8 @@ const PropertyInfo = () => {
           setPolicies([]);
         }
 
- 
         try {
-          const locationRes = await axiosInstance.get(`/HotelLocation/${id}`);
+          const locationRes = await axiosInstance.get(`/admin/AdminHotelLocation?hotelId=${id}`);
           console.log("Location API Response:", locationRes.data);
           const locationsData = handleApiResponse(locationRes, []);
           setLocations(locationsData);
@@ -189,7 +192,6 @@ const PropertyInfo = () => {
           console.error("Error fetching locations:", err);
           setLocations([]);
         }
-
       } catch (error) {
         console.error("Error fetching property info:", error);
         setError("Failed to load property information. Please try again.");
@@ -251,6 +253,9 @@ const PropertyInfo = () => {
                   alt="main-hotel"
                   className="img-fluid rounded w-100"
                   style={{ height: "400px", objectFit: "cover" }}
+                  onError={(e) => {
+                    e.target.src = "https://via.placeholder.com/800x400?text=Hotel+Image";
+                  }}
                 />
               </div>
 
@@ -268,6 +273,9 @@ const PropertyInfo = () => {
                       border: mainImage === pic ? "2px solid red" : "none",
                     }}
                     onClick={() => setMainImage(pic)}
+                    onError={(e) => {
+                      e.target.src = "https://via.placeholder.com/100x100?text=Image";
+                    }}
                   />
                 ))}
               </div>
@@ -305,6 +313,9 @@ const PropertyInfo = () => {
                             alt="selected"
                             className="img-fluid rounded"
                             style={{ maxHeight: "500px", objectFit: "cover", width: "100%" }}
+                            onError={(e) => {
+                              e.target.src = "https://via.placeholder.com/800x500?text=Hotel+Image";
+                            }}
                           />
                         </div>
 
@@ -335,6 +346,9 @@ const PropertyInfo = () => {
                                   width: "100%",
                                 }}
                                 onClick={() => setMainImage(pic)}
+                                onError={(e) => {
+                                  e.target.src = "https://via.placeholder.com/100x100?text=Image";
+                                }}
                               />
                             </div>
                           ))}
@@ -349,15 +363,14 @@ const PropertyInfo = () => {
 
           <div className="col-md-4 ">
             <div className="border rounded p-3 shadow-sm">
-              <h6 className="fw-bold">
-                {rooms.length > 0 ? rooms[0].Room_Type : "Room Available"}
-              </h6>
+              <h6 className="fw-bold">{rooms.length > 0 ? rooms[0].Room_Type : "Room Available"}</h6>
               <p className="mb-1">
                 {rooms.length > 0 ? `${rooms[0].MaximumGuest_Count} Guests • 1 Room` : "3 Guests • 1 Room"}
               </p>
               <p className="text-success small mb-1">Free Cancellation till {new Date().toLocaleDateString()}</p>
               <h5 className="text-danger">
-                ₹{rooms.length > 0 ? Number(rooms[0].Price).toLocaleString() : "972"} <small className="text-muted">+ taxes & fees</small>
+                ₹{rooms.length > 0 ? Number(rooms[0].Price).toLocaleString() : "972"}{" "}
+                <small className="text-muted">+ taxes & fees</small>
               </h5>
               <button className="btn btn-danger w-100 mt-2" onClick={() => scrollToSection("rooms")}>
                 View Room Options
@@ -387,14 +400,17 @@ const PropertyInfo = () => {
 
           {Array.isArray(rooms) && rooms.length > 0 ? (
             rooms.map((room, index) => (
-              <div key={room.RoomId || index} className="border rounded p-3 mb-3 shadow-sm">
+              <div key={room.RoomId || room.Id || index} className="border rounded p-3 mb-3 shadow-sm">
                 <div className="row">
                   <div className="col-md-4">
                     <img
-                      src={room.Room_Image || "https://picsum.photos/400/300"}
+                      src={room.Room_Image || "https://via.placeholder.com/400x300?text=Room+Image"}
                       alt={room.Room_Type}
                       className="img-fluid rounded mb-2"
                       style={{ height: "200px", objectFit: "cover", width: "100%" }}
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/400x300?text=Room+Image";
+                      }}
                     />
                   </div>
 
@@ -472,10 +488,13 @@ const PropertyInfo = () => {
                 <div className="modal-body">
                   <div className="mb-3 text-center">
                     <img
-                      src={selectedRoom.Room_Image || "https://picsum.photos/400/300"}
+                      src={selectedRoom.Room_Image || "https://via.placeholder.com/800x400?text=Room+Image"}
                       alt={selectedRoom.Room_Type}
                       className="img-fluid rounded"
                       style={{ maxHeight: "400px", objectFit: "cover", width: "100%" }}
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/800x400?text=Room+Image";
+                      }}
                     />
                   </div>
 
@@ -515,7 +534,7 @@ const PropertyInfo = () => {
                       <h6 className="mt-3">Hotel Amenities</h6>
                       <div className="row g-2 mb-3">
                         {amenities.map((a, idx) => (
-                          <div key={idx} className="col-md-6">
+                          <div key={a.AmenityId || a.Id || idx} className="col-md-6">
                             <strong>{a.Amenity_Name}</strong>
                             {a.Amenities_Description && <p className="text-muted small">{a.Amenities_Description}</p>}
                           </div>
@@ -557,7 +576,7 @@ const PropertyInfo = () => {
                     <>
                       <h6 className="mt-3">Hotel Policies</h6>
                       {policies.map((policy, idx) => (
-                        <div key={idx}>
+                        <div key={policy.PolicyId || policy.Id || idx}>
                           <p>
                             Check-in Time: {policy.CheckInTime} | Check-out Time: {policy.CheckOutTime}
                           </p>
@@ -589,9 +608,7 @@ const PropertyInfo = () => {
                   )}
                   <br />
                   <br />
-                  <p className="fw-bold fs-5 text-danger">
-                    Price: ₹{Number(selectedRoom.Price).toLocaleString()} / night
-                  </p>
+                  <p className="fw-bold fs-5 text-danger">Price: ₹{Number(selectedRoom.Price).toLocaleString()} / night</p>
                 </div>
               </div>
             </div>
@@ -604,7 +621,7 @@ const PropertyInfo = () => {
             {amenities.length > 0 ? (
               <div className="row g-3">
                 {amenities.map((a, index) => (
-                  <div key={index} className="col-md-4">
+                  <div key={a.AmenityId || a.Id || index} className="col-md-4">
                     <div className="border rounded p-2">
                       <h6 className="fw-bold">{a.Amenity_Name}</h6>
                       {a.Amenities_Description && <p className="text-muted small mb-0">{a.Amenities_Description}</p>}
@@ -664,7 +681,8 @@ const PropertyInfo = () => {
                 <div className="rounded p-3 text-white" style={{ backgroundColor: "#4CAF50" }}>
                   <p className="mb-1">Hotel Rating</p>
                   <h3 className="fw-bold mb-0">
-                    {hotel.Rating ? Number(hotel.Rating).toFixed(1) : "4.2"}<span style={{ fontSize: "18px" }}>/5</span>
+                    {hotel.Rating ? Number(hotel.Rating).toFixed(1) : "4.2"}
+                    <span style={{ fontSize: "18px" }}>/5</span>
                   </h3>
                   <small>{rooms.length > 0 && rooms[0].Reviews_Count ? rooms[0].Reviews_Count : "527"} Ratings</small>
                   <br />
@@ -721,43 +739,46 @@ const PropertyInfo = () => {
               </a>
             </div>
 
-            
             <div className="mt-4">
-              {rooms && rooms.length > 0 && rooms.some(room => room.Reviews_Description) ? (
+              {rooms && rooms.length > 0 && rooms.some((room) => room.Reviews_Description) ? (
                 <>
                   <h6 className="fw-bold">Recent Reviews</h6>
-                  {rooms.filter(room => room.Reviews_Description).map((room, idx) => (
-                    <div key={room.RoomId || idx} className="mb-4">
-                      <div className="border rounded p-3 mb-3 shadow-sm">
-                        <div className="d-flex justify-content-between">
-                          <div className="d-flex align-items-center">
-                            <div
-                              className="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center"
-                              style={{ width: "40px", height: "40px", fontWeight: "bold" }}
+                  {rooms
+                    .filter((room) => room.Reviews_Description)
+                    .map((room, idx) => (
+                      <div key={room.RoomId || room.Id || idx} className="mb-4">
+                        <div className="border rounded p-3 mb-3 shadow-sm">
+                          <div className="d-flex justify-content-between">
+                            <div className="d-flex align-items-center">
+                              <div
+                                className="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center"
+                                style={{ width: "40px", height: "40px", fontWeight: "bold" }}
+                              >
+                                {room.Reviewer_Name?.split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                                  .toUpperCase() || "U"}
+                              </div>
+                              <div className="ms-2">
+                                <strong>{room.Reviewer_Name || "Anonymous"}</strong>
+                                <br />
+                                <small className="text-muted">
+                                  Stayed {new Date(room.Review_Date).toLocaleDateString()}
+                                </small>
+                              </div>
+                            </div>
+                            <span
+                              className={`badge p-2 ${
+                                room.Rating >= 4 ? "bg-success" : room.Rating >= 3 ? "bg-warning text-dark" : "bg-danger"
+                              }`}
                             >
-                              {room.Reviewer_Name?.split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase() || "U"}
-                            </div>
-                            <div className="ms-2">
-                              <strong>{room.Reviewer_Name || "Anonymous"}</strong>
-                              <br />
-                              <small className="text-muted">Stayed {new Date(room.Review_Date).toLocaleDateString()}</small>
-                            </div>
+                              {Number(room.Rating).toFixed(1)}/5
+                            </span>
                           </div>
-                          <span
-                            className={`badge p-2 ${
-                              room.Rating >= 4 ? "bg-success" : room.Rating >= 3 ? "bg-warning text-dark" : "bg-danger"
-                            }`}
-                          >
-                            {Number(room.Rating).toFixed(1)}/5
-                          </span>
+                          <p className="mt-2 mb-0">{room.Reviews_Description}</p>
                         </div>
-                        <p className="mt-2 mb-0">{room.Reviews_Description}</p>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </>
               ) : (
                 <p className="text-muted">No detailed reviews available for this property.</p>
@@ -772,7 +793,7 @@ const PropertyInfo = () => {
           <div className="border rounded p-4 shadow-sm bg-white">
             {policies.length > 0 ? (
               policies.map((policy, idx) => (
-                <div key={policy.PolicyId || idx} className="mb-4">
+                <div key={policy.PolicyId || policy.Id || idx} className="mb-4">
                   <h6>Check-in & Check-out</h6>
                   <div className="row g-2 mb-3">
                     <div className="col-md-6">
@@ -847,7 +868,7 @@ const PropertyInfo = () => {
           <div className="border rounded p-4 shadow-sm bg-white">
             {locations.length > 0 ? (
               locations.map((loc, idx) => (
-                <div key={loc.LocationId || idx} className="mb-3">
+                <div key={loc.LocationId || loc.Id || idx} className="mb-3">
                   <h6>Address</h6>
                   <p className="text-muted">📍 {loc.Address}</p>
 
@@ -867,7 +888,10 @@ const PropertyInfo = () => {
                   {loc.EmbedUrl && (
                     <>
                       <h6 className="mt-4">Map</h6>
-                      <div className="border rounded shadow-sm overflow-hidden" style={{ height: "200px", maxWidth: "100%" }}>
+                      <div
+                        className="border rounded shadow-sm overflow-hidden"
+                        style={{ height: "200px", maxWidth: "100%" }}
+                      >
                         <iframe
                           src={loc.EmbedUrl}
                           width="100%"
@@ -909,13 +933,16 @@ const PropertyInfo = () => {
           {similarProperties.length > 0 ? (
             <div className="row">
               {similarProperties.map((prop, idx) => (
-                <div key={prop.SimilarId || idx} className="col-md-3 mb-3">
+                <div key={prop.SimilarId || prop.Id || idx} className="col-md-3 mb-3">
                   <div className="card shadow-sm h-100">
                     <img
-                      src={prop.ImageUrl || "https://picsum.photos/300x200"}
+                      src={prop.ImageUrl || "https://via.placeholder.com/300x200?text=Hotel+Image"}
                       className="card-img-top"
                       alt={prop.SimilarHotel_Name}
                       style={{ height: "250px", objectFit: "cover" }}
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/300x200?text=Hotel+Image";
+                      }}
                     />
                     <div className="card-body">
                       <h5 className="card-title">{prop.SimilarHotel_Name}</h5>
@@ -934,8 +961,8 @@ const PropertyInfo = () => {
                       <button
                         className="btn btn-outline-danger"
                         onClick={() =>
-                          navigate(`/property/${prop.HotelId || prop.SimilarId}`, { 
-                            state: { hotel: { ...prop, HotelId: prop.HotelId || prop.SimilarId } } 
+                          navigate(`/property/${prop.HotelId || prop.SimilarId}`, {
+                            state: { hotel: { ...prop, HotelId: prop.HotelId || prop.SimilarId } },
                           })
                         }
                       >

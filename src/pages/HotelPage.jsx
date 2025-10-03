@@ -17,7 +17,7 @@ const HotelPage = () => {
     deals: true,
     seasons: true,
     destinations: true,
-    faqs: true
+    faqs: true,
   });
 
   const locations = ["Wayanad", "New York", "London", "Paris", "Dubai", "Mumbai", "Chennai"];
@@ -36,38 +36,35 @@ const HotelPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        
-        const offersRes = await axiosInstance.get("/hotels/offers");
+        const offersRes = await axiosInstance.get("/hotel/offers");
         if (offersRes.data.Success && offersRes.data.Data) {
           setHotelOffers(offersRes.data.Data);
         }
-        setLoading(prev => ({ ...prev, offers: false }));
+        setLoading((prev) => ({ ...prev, offers: false }));
 
-        const dealsRes = await axiosInstance.get("/hotels/dailydeals");
+        const dealsRes = await axiosInstance.get("/hotel/daily-deals");
         if (dealsRes.data.Success && dealsRes.data.Data) {
           setDailyDeals(dealsRes.data.Data);
         }
-        setLoading(prev => ({ ...prev, deals: false }));
+        setLoading((prev) => ({ ...prev, deals: false }));
 
-        const seasonsRes = await axiosInstance.get("/hotels/seasons");
+        const seasonsRes = await axiosInstance.get("/hotel/seasons");
         if (seasonsRes.data.Success && seasonsRes.data.Data) {
           setSeasons(seasonsRes.data.Data);
         }
-        setLoading(prev => ({ ...prev, seasons: false }));
+        setLoading((prev) => ({ ...prev, seasons: false }));
 
-        
-        const destinationsRes = await axiosInstance.get("/hotels/popular-destinations");
+        const destinationsRes = await axiosInstance.get("/hotel/popular-destinations");
         if (destinationsRes.data.Success && destinationsRes.data.Data) {
           setPopularDestinations(destinationsRes.data.Data);
         }
-        setLoading(prev => ({ ...prev, destinations: false }));
+        setLoading((prev) => ({ ...prev, destinations: false }));
 
-        const faqsRes = await axiosInstance.get("/hotels/faqs");
+        const faqsRes = await axiosInstance.get("/hotel/faqs");
         if (faqsRes.data.Success && faqsRes.data.Data) {
           setHotelFaqs(faqsRes.data.Data);
         }
-        setLoading(prev => ({ ...prev, faqs: false }));
-
+        setLoading((prev) => ({ ...prev, faqs: false }));
       } catch (error) {
         console.error("Error fetching data:", error);
         setLoading({
@@ -75,7 +72,7 @@ const HotelPage = () => {
           deals: false,
           seasons: false,
           destinations: false,
-          faqs: false
+          faqs: false,
         });
       }
     };
@@ -88,7 +85,7 @@ const HotelPage = () => {
     setHotelData({ ...hotelData, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const payload = {
@@ -100,7 +97,24 @@ const HotelPage = () => {
       Room_Count: hotelData.roomCount,
     };
 
-    navigate("/hotelsearch", { state: { hotelData: payload } });
+    try {
+      const searchResponse = await axiosInstance.post("/hotel/search/query", payload);
+
+      if (searchResponse.data.Success) {
+        navigate("/hotelsearch", {
+          state: {
+            hotelData: payload,
+            searchResults: searchResponse.data.Data,
+          },
+        });
+      } else {
+        console.error("Search failed:", searchResponse.data.Message);
+        navigate("/hotelsearch", { state: { hotelData: payload } });
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      navigate("/hotelsearch", { state: { hotelData: payload } });
+    }
   };
 
   const LoadingSpinner = () => (
@@ -205,7 +219,6 @@ const HotelPage = () => {
             </button>
           </form>
 
-         
           <div className="mt-5">
             <h2 className="mb-4 text-center">Hotel Offers</h2>
             {loading.offers ? (
@@ -215,21 +228,24 @@ const HotelPage = () => {
             ) : (
               <div className="row">
                 {hotelOffers.map((offer) => (
-                  <div key={offer.HotelOfferId} className="col-md-4 mb-3">
+                  <div key={offer.HotelOfferId || offer.Id} className="col-md-4 mb-3">
                     <div className="card shadow-sm h-100">
                       <img
-                        src={offer.Hotel_Image}
+                        src={offer.Hotel_Image || offer.Image}
                         className="card-img-top"
-                        alt={offer.Hotel_Name}
+                        alt={offer.Hotel_Name || offer.Name}
                         style={{ height: "150px", objectFit: "cover" }}
+                        onError={(e) => {
+                          e.target.src = "https://via.placeholder.com/300x150?text=Hotel+Image";
+                        }}
                       />
                       <div className="card-body d-flex flex-column">
-                        <h5 className="card-title">{offer.Hotel_Name}</h5>
-                        <p className="card-text flex-grow-1">{offer.HotelOffer_Description}</p>
+                        <h5 className="card-title">{offer.Hotel_Name || offer.Name}</h5>
+                        <p className="card-text flex-grow-1">{offer.HotelOffer_Description || offer.Description}</p>
                         <div className="mt-auto">
                           <span className="badge bg-success">{offer.DiscountPercentage}% OFF</span>
                           <p className="text-muted mb-0 mt-2">
-                            Valid till: {new Date(offer.Valid_Date).toLocaleDateString()}
+                            Valid till: {new Date(offer.Valid_Date || offer.ValidUntil).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -240,7 +256,6 @@ const HotelPage = () => {
             )}
           </div>
 
-         
           <div className="mt-5">
             <h2 className="mb-4 text-center">Daily Steal Deals</h2>
             {loading.deals ? (
@@ -254,17 +269,20 @@ const HotelPage = () => {
                   const emptyStars = 5 - fullStars;
 
                   return (
-                    <div key={deal.DealId} className="col-md-6 col-lg-4 mb-3">
+                    <div key={deal.DealId || deal.Id} className="col-md-6 col-lg-4 mb-3">
                       <div className="card shadow-sm h-100">
                         <img
-                          src={deal.Image}
+                          src={deal.Image || deal.Hotel_Image}
                           className="card-img-top"
                           style={{ height: "150px", objectFit: "cover" }}
-                          alt={deal.Hotel_Name}
+                          alt={deal.Hotel_Name || deal.Name}
+                          onError={(e) => {
+                            e.target.src = "https://via.placeholder.com/300x150?text=Deal+Image";
+                          }}
                         />
                         <div className="card-body d-flex flex-column">
-                          <h5 className="card-title">{deal.Hotel_Name}</h5>
-                          <p className="card-text">{deal.Location}</p>
+                          <h5 className="card-title">{deal.Hotel_Name || deal.Name}</h5>
+                          <p className="card-text">{deal.Location || deal.City}</p>
                           <div className="mb-2">
                             {Array.from({ length: fullStars }, (_, i) => (
                               <span key={`full-${i}`}>⭐</span>
@@ -275,9 +293,9 @@ const HotelPage = () => {
                           </div>
                           <div className="mt-auto">
                             <p className="mb-1">
-                              <b>₹{deal.Price}</b>
+                              <b>₹{deal.Price || deal.Price_Per_Night}</b>
                             </p>
-                            <small className="text-muted">₹{deal.Price_Per_Night} per night</small>
+                            <small className="text-muted">₹{deal.Price_Per_Night || deal.Price} per night</small>
                           </div>
                         </div>
                       </div>
@@ -288,7 +306,6 @@ const HotelPage = () => {
             )}
           </div>
 
-         
           <div className="mt-5">
             <h2 className="mb-4 text-center">Different Seasons</h2>
             {loading.seasons ? (
@@ -298,20 +315,23 @@ const HotelPage = () => {
             ) : (
               <div className="row">
                 {seasons.map((season) => (
-                  <div key={season.SeasonId} className="col-md-6 col-lg-4 mb-3">
+                  <div key={season.SeasonId || season.Id} className="col-md-6 col-lg-4 mb-3">
                     <div className="card shadow-sm h-100">
-                      <img 
-                        src={season.Location_Image} 
-                        className="card-img-top" 
-                        alt={season.Location_Name}
+                      <img
+                        src={season.Location_Image || season.Image}
+                        className="card-img-top"
+                        alt={season.Location_Name || season.Name}
                         style={{ height: "200px", objectFit: "cover" }}
+                        onError={(e) => {
+                          e.target.src = "https://via.placeholder.com/300x200?text=Season+Image";
+                        }}
                       />
                       <div className="card-body">
-                        <h5 className="card-title">{season.Season_Name}</h5>
-                        <p className="card-text">{season.Location_Name}</p>
+                        <h5 className="card-title">{season.Season_Name || season.Name}</h5>
+                        <p className="card-text">{season.Location_Name || season.Location}</p>
                         <small className="text-muted">
-                          {new Date(season.Start_Date).toLocaleDateString()} to{" "}
-                          {new Date(season.End_Date).toLocaleDateString()}
+                          {new Date(season.Start_Date || season.StartDate).toLocaleDateString()} to{" "}
+                          {new Date(season.End_Date || season.EndDate).toLocaleDateString()}
                         </small>
                       </div>
                     </div>
@@ -321,7 +341,6 @@ const HotelPage = () => {
             )}
           </div>
 
-          
           <div className="mt-5">
             <h2 className="mb-4 text-center">Popular Destinations</h2>
             {loading.destinations ? (
@@ -332,19 +351,22 @@ const HotelPage = () => {
               <div className="d-flex overflow-auto pb-3">
                 {popularDestinations.map((dest) => (
                   <div
-                    key={dest.DestinationId}
+                    key={dest.DestinationId || dest.Id}
                     className="card me-3 shadow-sm"
                     style={{ minWidth: "250px", height: "300px" }}
                   >
-                    <img 
-                      src={dest.Location_Image} 
-                      className="card-img-top" 
-                      alt={dest.Location_Name}
+                    <img
+                      src={dest.Location_Image || dest.Image}
+                      className="card-img-top"
+                      alt={dest.Location_Name || dest.Name}
                       style={{ height: "150px", objectFit: "cover" }}
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/250x150?text=Destination";
+                      }}
                     />
                     <div className="card-body">
-                      <h6 className="card-title">{dest.Location_Name}</h6>
-                      <p className="card-text text-muted small">{dest.Location_Description}</p>
+                      <h6 className="card-title">{dest.Location_Name || dest.Name}</h6>
+                      <p className="card-text text-muted small">{dest.Location_Description || dest.Description}</p>
                     </div>
                   </div>
                 ))}
@@ -352,7 +374,6 @@ const HotelPage = () => {
             )}
           </div>
 
-          
           <div className="mt-5">
             <h2 className="mb-4 text-center">Hotel Booking FAQs</h2>
             {loading.faqs ? (
@@ -362,7 +383,7 @@ const HotelPage = () => {
             ) : (
               <div className="row">
                 {hotelFaqs.map((faq) => (
-                  <div key={faq.FaqId} className="col-md-6 mb-4">
+                  <div key={faq.FaqId || faq.Id} className="col-md-6 mb-4">
                     <div className="card shadow-sm h-100">
                       <div className="card-body">
                         <h5 className="card-title fw-bold">{faq.Question}</h5>

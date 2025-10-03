@@ -35,160 +35,196 @@ const OverView = () => {
   const [topFlightBookings, setTopFlightBookings] = useState([]);
   const [hotelOffers, setHotelOffers] = useState([]);
   const [flightOffers, setFlightOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
- 
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const extractData = (response, fallback = []) => {
-        if (response.data && response.data.Data) {
-          return response.data.Data;
-        } else if (response.data && Array.isArray(response.data)) {
-          return response.data;
-        } else if (response.data && typeof response.data === 'object') {
-          return response.data;
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const extractData = (response, fallback = []) => {
+          if (response.data && response.data.Data) {
+            return response.data.Data;
+          } else if (response.data && Array.isArray(response.data)) {
+            return response.data;
+          } else if (response.data && typeof response.data === "object") {
+            return response.data;
+          }
+          return fallback;
+        };
+
+        const overviewRes = await axiosInstance.get("/admin/AdminOverview");
+        console.log("Overview API response:", overviewRes.data);
+        const overviewData = extractData(overviewRes, {});
+
+        setCards({
+          totalUsers: overviewData.TotalUsers || 0,
+          totalBookings: overviewData.TotalBookings || 0,
+          totalRevenue: Number(overviewData.TotalRevenue || 0).toFixed(2),
+        });
+
+        try {
+          const revUserRes = await axiosInstance.get("/admin/AdminOverview/revenue-by-user");
+          const revUserData = extractData(revUserRes, []);
+          setRevenueByUser(
+            (Array.isArray(revUserData) ? revUserData : []).map((u) => ({
+              name: u.Name || "Unknown",
+              revenue: u.Revenue || 0,
+              bookings: u.Bookings || 0,
+            }))
+          );
+        } catch (err) {
+          console.error("Revenue by user fetch error:", err);
+          setRevenueByUser([]);
         }
-        return fallback;
-      };
 
-      const overviewRes = await axiosInstance.get("/AdminOverview/overview");
-      console.log("Overview API response:", overviewRes.data);
-      const overviewData = extractData(overviewRes, {});
-      
-      setCards({
-        totalUsers: overviewData.TotalUsers || 0,
-        totalBookings: overviewData.TotalBookings || 0,
-        totalRevenue: Number(overviewData.TotalRevenue || 0).toFixed(2),
-      });
+        try {
+          const bookUserRes = await axiosInstance.get("/admin/AdminOverview/bookings-per-user");
+          const bookUserData = extractData(bookUserRes, []);
+          setBookingsPerUser(
+            (Array.isArray(bookUserData) ? bookUserData : []).map((u) => ({
+              name: u.Name || "Unknown",
+              bookings: u.Bookings || 0,
+              revenue: u.Revenue || 0,
+            }))
+          );
+        } catch (err) {
+          console.error("Bookings per user fetch error:", err);
+          setBookingsPerUser([]);
+        }
 
-      try {
-        const revUserRes = await axiosInstance.get("/AdminOverview/revenue-by-user");
-        const revUserData = extractData(revUserRes, []);
-        setRevenueByUser(
-          (Array.isArray(revUserData) ? revUserData : []).map((u) => ({
-            name: u.Name || "Unknown",
-            revenue: u.Revenue || 0,
-            bookings: u.Bookings || 0,
-          }))
-        );
+        try {
+          const dailyRevRes = await axiosInstance.get("/admin/AdminOverview/daily-revenue");
+          const dailyRevData = extractData(dailyRevRes, []);
+          setDailyRevenue(
+            (Array.isArray(dailyRevData) ? dailyRevData : []).map((d) => ({
+              date: new Date(d.Date).toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              }),
+              total: d.TotalRevenue || 0,
+            }))
+          );
+        } catch (err) {
+          console.error("Daily revenue fetch error:", err);
+          setDailyRevenue([]);
+        }
+
+        try {
+          const recentRes = await axiosInstance.get("/admin/AdminOverview/recent-activities");
+          const recentData = extractData(recentRes, []);
+          setRecentActivities(
+            (Array.isArray(recentData) ? recentData : []).map((item) => ({
+              message: item.Message || "No details",
+              timestamp: item.Timestamp || new Date().toISOString(),
+            }))
+          );
+        } catch (err) {
+          console.error("Recent activities fetch error:", err);
+          setRecentActivities([]);
+        }
+
+        try {
+          const topHotelsRes = await axiosInstance.get("/admin/AdminOverview/top-hotels");
+          const topHotelsData = extractData(topHotelsRes, []);
+          setTopHotelBookings(
+            (Array.isArray(topHotelsData) ? topHotelsData : []).map((h) => ({
+              name: h.Name || "Unknown",
+              bookings: h.Bookings || 0,
+            }))
+          );
+        } catch (err) {
+          console.error("Top hotels fetch error:", err);
+          setTopHotelBookings([]);
+        }
+
+        try {
+          const topFlightsRes = await axiosInstance.get("/admin/AdminOverview/top-flights");
+          const topFlightsData = extractData(topFlightsRes, []);
+          setTopFlightBookings(
+            (Array.isArray(topFlightsData) ? topFlightsData : []).map((f) => ({
+              name: f.Name || "Unknown",
+              bookings: f.Bookings || 0,
+            }))
+          );
+        } catch (err) {
+          console.error("Top flights fetch error:", err);
+          setTopFlightBookings([]);
+        }
+
+        try {
+          const hotelOffersRes = await axiosInstance.get("/admin/AdminOverview/hotel-offers");
+          const hotelOffersData = extractData(hotelOffersRes, []);
+          setHotelOffers((Array.isArray(hotelOffersData) ? hotelOffersData : []).slice(0, 5));
+        } catch (err) {
+          console.error("Hotel offers fetch error:", err);
+          setHotelOffers([]);
+        }
+
+        try {
+          const flightOffersRes = await axiosInstance.get("/admin/AdminOverview/flight-offers");
+          const flightOffersData = extractData(flightOffersRes, []);
+          setFlightOffers((Array.isArray(flightOffersData) ? flightOffersData : []).slice(0, 5));
+        } catch (err) {
+          console.error("Flight offers fetch error:", err);
+          setFlightOffers([]);
+        }
       } catch (err) {
-        console.error("Revenue by user fetch error:", err);
-        setRevenueByUser([]);
+        console.error("Dashboard fetch error:", err);
+        setError("Failed to load dashboard data. Please check your admin privileges.");
+        setCards({
+          totalUsers: 0,
+          totalBookings: 0,
+          totalRevenue: "0.00",
+        });
+      } finally {
+        setLoading(false);
       }
+    };
 
-      try {
-        const bookUserRes = await axiosInstance.get("/AdminOverview/bookings-per-user");
-        const bookUserData = extractData(bookUserRes, []);
-        setBookingsPerUser(
-          (Array.isArray(bookUserData) ? bookUserData : []).map((u) => ({
-            name: u.Name || "Unknown",
-            bookings: u.Bookings || 0,
-            revenue: u.Revenue || 0,
-          }))
-        );
-      } catch (err) {
-        console.error("Bookings per user fetch error:", err);
-        setBookingsPerUser([]);
-      }
+    fetchData();
+  }, []);
 
-      try {
-        const dailyRevRes = await axiosInstance.get("/AdminOverview/daily-revenue-trend");
-        const dailyRevData = extractData(dailyRevRes, []);
-        setDailyRevenue(
-          (Array.isArray(dailyRevData) ? dailyRevData : []).map((d) => ({
-            date: new Date(d.Date).toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            }),
-            total: d.TotalRevenue || 0,
-          }))
-        );
-      } catch (err) {
-        console.error("Daily revenue fetch error:", err);
-        setDailyRevenue([]);
-      }
-
-      try {
-        const recentRes = await axiosInstance.get("/AdminOverview/recent-activities");
-        const recentData = extractData(recentRes, []);
-        setRecentActivities(
-          (Array.isArray(recentData) ? recentData : []).map((item) => ({
-            message: item.Message || "No details",
-            timestamp: item.Timestamp || new Date().toISOString(),
-          }))
-        );
-      } catch (err) {
-        console.error("Recent activities fetch error:", err);
-        setRecentActivities([]);
-      }
-
-  
-      try {
-        const topHotelsRes = await axiosInstance.get("/AdminOverview/top-hotels");
-        const topHotelsData = extractData(topHotelsRes, []);
-        setTopHotelBookings(
-          (Array.isArray(topHotelsData) ? topHotelsData : []).map((h) => ({
-            name: h.Name || "Unknown",
-            bookings: h.Bookings || 0,
-          }))
-        );
-      } catch (err) {
-        console.error("Top hotels fetch error:", err);
-        setTopHotelBookings([]);
-      }
-
-      try {
-        const topFlightsRes = await axiosInstance.get("/AdminOverview/top-flights");
-        const topFlightsData = extractData(topFlightsRes, []);
-        setTopFlightBookings(
-          (Array.isArray(topFlightsData) ? topFlightsData : []).map((f) => ({
-            name: f.Name || "Unknown",
-            bookings: f.Bookings || 0,
-          }))
-        );
-      } catch (err) {
-        console.error("Top flights fetch error:", err);
-        setTopFlightBookings([]);
-      }
-
-      
-      try {
-        const hotelOffersRes = await axiosInstance.get("/AdminOverview/hotel-offers");
-        const hotelOffersData = extractData(hotelOffersRes, []);
-        setHotelOffers((Array.isArray(hotelOffersData) ? hotelOffersData : []).slice(0, 5));
-      } catch (err) {
-        console.error("Hotel offers fetch error:", err);
-        setHotelOffers([]);
-      }
-
-      
-      try {
-        const flightOffersRes = await axiosInstance.get("/AdminOverview/flight-offers");
-        const flightOffersData = extractData(flightOffersRes, []);
-        setFlightOffers((Array.isArray(flightOffersData) ? flightOffersData : []).slice(0, 5));
-      } catch (err) {
-        console.error("Flight offers fetch error:", err);
-        setFlightOffers([]);
-      }
-
-    } catch (err) {
-      console.error("Dashboard fetch error:", err);
-      setCards({
-        totalUsers: 0,
-        totalBookings: 0,
-        totalRevenue: "0.00",
-      });
-    }
-  };
-
-  fetchData();
-}, []);
   const cardList = [
     { title: "Total Users", value: cards.totalUsers, icon: <FaUsers className="text-primary fs-2" /> },
     { title: "Total Bookings", value: cards.totalBookings, icon: <FaShoppingCart className="text-success fs-2" /> },
     { title: "Total Revenue", value: `₹${cards.totalRevenue}`, icon: <FaRupeeSign className="text-warning fs-2" /> },
   ];
+
+  if (loading) {
+    return (
+      <div className="d-flex bg-light min-vh-100">
+        <Sidebar />
+        <div className="container-fluid p-4" style={{ marginLeft: "100px" }}>
+          <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <span className="ms-3">Loading dashboard data...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="d-flex bg-light min-vh-100">
+        <Sidebar />
+        <div className="container-fluid p-4" style={{ marginLeft: "100px" }}>
+          <div className="alert alert-danger" role="alert">
+            <h4 className="alert-heading">Error Loading Dashboard</h4>
+            <p>{error}</p>
+            <hr />
+            <p className="mb-0">Please ensure you are logged in as an administrator.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="d-flex bg-light min-vh-100">
@@ -239,28 +275,36 @@ useEffect(() => {
           <div className="col-md-6">
             <div className="card shadow-sm p-3 h-100">
               <h5 className="card-title mb-3 text-primary">Top 5 Hotel Offers</h5>
-              {hotelOffers.map((offer, i) => (
-                <div key={i} className="border-start border-4 border-success ps-3 py-2 mb-2 bg-light rounded">
-                  <h6 className="fw-bold mb-1">
-                    {offer.Title} <small className="text-muted">{offer.DiscountPercentage}%</small>
-                  </h6>
-                  <small className="text-muted">{offer.Description}</small>
-                </div>
-              ))}
+              {hotelOffers.length === 0 ? (
+                <p className="text-muted fst-italic">No hotel offers available.</p>
+              ) : (
+                hotelOffers.map((offer, i) => (
+                  <div key={i} className="border-start border-4 border-success ps-3 py-2 mb-2 bg-light rounded">
+                    <h6 className="fw-bold mb-1">
+                      {offer.Title} <small className="text-muted">{offer.DiscountPercentage}%</small>
+                    </h6>
+                    <small className="text-muted">{offer.Description}</small>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           <div className="col-md-6">
             <div className="card shadow-sm p-3 h-100">
               <h5 className="card-title mb-3 text-danger">Top 5 Flight Offers</h5>
-              {flightOffers.map((offer, i) => (
-                <div key={i} className="border-start border-4 border-warning ps-3 py-2 mb-2 bg-light rounded">
-                  <h6 className="fw-bold mb-1">
-                    {offer.Title} <small className="text-muted">{offer.DiscountPercentage}%</small>
-                  </h6>
-                  <small className="text-muted">{offer.Description}</small>
-                </div>
-              ))}
+              {flightOffers.length === 0 ? (
+                <p className="text-muted fst-italic">No flight offers available.</p>
+              ) : (
+                flightOffers.map((offer, i) => (
+                  <div key={i} className="border-start border-4 border-warning ps-3 py-2 mb-2 bg-light rounded">
+                    <h6 className="fw-bold mb-1">
+                      {offer.Title} <small className="text-muted">{offer.DiscountPercentage}%</small>
+                    </h6>
+                    <small className="text-muted">{offer.Description}</small>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -268,82 +312,120 @@ useEffect(() => {
         <div className="row g-4 mt-4">
           <div className="col-md-6">
             <ChartCard title="Revenue by User">
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie data={revenueByUser} dataKey="revenue" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
-                    {revenueByUser.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => `₹${parseFloat(value).toFixed(2)}`} />
-                </PieChart>
-              </ResponsiveContainer>
+              {revenueByUser.length === 0 ? (
+                <div className="d-flex justify-content-center align-items-center" style={{ height: "250px" }}>
+                  <p className="text-muted">No revenue data available</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={revenueByUser}
+                      dataKey="revenue"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      label={({ name, revenue }) => `${name}: ₹${revenue}`}
+                    >
+                      {revenueByUser.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `₹${parseFloat(value).toFixed(2)}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </ChartCard>
           </div>
 
           <div className="col-md-6">
             <ChartCard title="Top 5 Hotel Bookings">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={topHotelBookings}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="bookings" fill="#ff8042" />
-                </BarChart>
-              </ResponsiveContainer>
+              {topHotelBookings.length === 0 ? (
+                <div className="d-flex justify-content-center align-items-center" style={{ height: "250px" }}>
+                  <p className="text-muted">No hotel booking data available</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={topHotelBookings}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="bookings" fill="#ff8042" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </ChartCard>
           </div>
 
           <div className="col-md-6">
             <ChartCard title="Top 5 Flight Bookings">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={topFlightBookings}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="bookings" fill="#8884d8" />
-                </BarChart>
-              </ResponsiveContainer>
+              {topFlightBookings.length === 0 ? (
+                <div className="d-flex justify-content-center align-items-center" style={{ height: "250px" }}>
+                  <p className="text-muted">No flight booking data available</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={topFlightBookings}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="bookings" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </ChartCard>
           </div>
 
           <div className="col-md-6">
             <ChartCard title="Bookings Per User">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={bookingsPerUser}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value, _, obj) =>
-                      obj.dataKey === "bookings" ? `${value} bookings` : `₹${parseFloat(value).toFixed(2)}`
-                    }
-                  />
-                  <Bar dataKey="bookings" fill="#ffc658" />
-                </BarChart>
-              </ResponsiveContainer>
+              {bookingsPerUser.length === 0 ? (
+                <div className="d-flex justify-content-center align-items-center" style={{ height: "250px" }}>
+                  <p className="text-muted">No user booking data available</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={bookingsPerUser}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value, _, obj) =>
+                        obj.dataKey === "bookings" ? `${value} bookings` : `₹${parseFloat(value).toFixed(2)}`
+                      }
+                    />
+                    <Bar dataKey="bookings" fill="#ffc658" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </ChartCard>
           </div>
 
           <div className="col-12">
             <ChartCard title="Daily Revenue Trend">
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={dailyRevenue}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <Tooltip formatter={(value) => `₹${parseFloat(value).toFixed(2)}`} />
-                  <Area dataKey="total" type="monotone" stroke="#82ca9d" fillOpacity={1} fill="url(#colorRevenue)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {dailyRevenue.length === 0 ? (
+                <div className="d-flex justify-content-center align-items-center" style={{ height: "250px" }}>
+                  <p className="text-muted">No daily revenue data available</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={dailyRevenue}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <Tooltip formatter={(value) => `₹${parseFloat(value).toFixed(2)}`} />
+                    <Area dataKey="total" type="monotone" stroke="#82ca9d" fillOpacity={1} fill="url(#colorRevenue)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </ChartCard>
           </div>
         </div>

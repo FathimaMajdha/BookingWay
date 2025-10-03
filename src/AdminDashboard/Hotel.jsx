@@ -60,6 +60,47 @@ const Hotel = () => {
   const [selectedHotelDetails, setSelectedHotelDetails] = useState(null);
   const hotelsPerPage = 10;
 
+  const safeToast = {
+    success: (message) => {
+      try {
+        toast.success(message, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+        });
+      } catch (error) {
+        console.warn("Toast error:", error);
+      }
+    },
+    error: (message) => {
+      try {
+        toast.error(message, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+        });
+      } catch (error) {
+        console.warn("Toast error:", error);
+      }
+    },
+    info: (message) => {
+      try {
+        toast.info(message, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnHover: true,
+        });
+      } catch (error) {
+        console.warn("Toast error:", error);
+      }
+    },
+  };
+
   useEffect(() => {
     fetchHotelSearches();
     fetchHotels();
@@ -67,10 +108,10 @@ const Hotel = () => {
 
   const fetchHotelSearches = async () => {
     try {
-      const res = await axiosInstance.get("/admin/hotel-search");
+      const res = await axiosInstance.get("/admin/AdminHotelSearch");
       console.log("Hotel searches API response:", res.data);
 
-      if (res.data && res.data.Data && Array.isArray(res.data.Data)) {
+      if (res.data && res.data.Success && res.data.Data) {
         setHotelSearches(res.data.Data);
       } else if (res.data && Array.isArray(res.data)) {
         setHotelSearches(res.data);
@@ -80,18 +121,18 @@ const Hotel = () => {
       }
     } catch (err) {
       console.error("Failed to load hotel searches:", err);
-      toast.error("Failed to load hotel searches");
+      safeToast.error("Failed to load hotel searches");
       setHotelSearches([]);
     }
   };
 
   const fetchHotels = async () => {
     try {
-      const res = await axiosInstance.get("/admin/hotel");
+      const res = await axiosInstance.get("/admin/AdminHotel");
       console.log("Raw hotels API response:", res.data);
 
       let hotelsData = [];
-      if (res.data && res.data.Data && Array.isArray(res.data.Data)) {
+      if (res.data && res.data.Success && res.data.Data) {
         hotelsData = res.data.Data;
       } else if (res.data && Array.isArray(res.data)) {
         hotelsData = res.data;
@@ -110,12 +151,12 @@ const Hotel = () => {
         hotelsData.map(async (hotel) => {
           try {
             const [rooms, amenities, policies, locations, dining, similarProps] = await Promise.all([
-              axiosInstance.get(`/admin/hotelroom?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/admin/hotelamenity?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/admin/hotelpolicy?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/AdminHotelLocation?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/AdminHotelDining?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/AdminSimilarProperty?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
+              axiosInstance.get(`/admin/AdminHotelRoom?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
+              axiosInstance.get(`/admin/AdminAmenity?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
+              axiosInstance.get(`/admin/AdminHotelPolicy?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
+              axiosInstance.get(`/admin/AdminHotelLocation?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
+              axiosInstance.get(`admin/AdminHotelDining?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
+              axiosInstance.get(`/admin/AdminSimilarProperty/similar/${hotel.HotelId}`).catch(() => ({ data: [] })),
             ]);
 
             let hotelImages = [];
@@ -139,25 +180,21 @@ const Hotel = () => {
               }
             }
 
-            console.log(`Hotel ${hotel.HotelId} images:`, {
-              raw: hotel.Hotel_Pictures,
-              parsed: hotelImages,
-              type: typeof hotel.Hotel_Pictures,
-            });
-
-            if (hotelImages.length === 0 && hotel.Hotel_PicturesJson) {
-              try {
-                if (hotel.Hotel_PicturesJson.includes(",")) {
-                  hotelImages = hotel.Hotel_PicturesJson.split(",").filter((url) => url.trim() !== "");
-                }
-              } catch (error) {
-                console.error("Error parsing Hotel_PicturesJson:", error);
+            const normalizeArrayResponse = (response) => {
+              if (!response.data) return [];
+              if (response.data.Success && response.data.Data && Array.isArray(response.data.Data)) {
+                return response.data.Data;
+              } else if (response.data.Data && Array.isArray(response.data.Data)) {
+                return response.data.Data;
+              } else if (Array.isArray(response.data)) {
+                return response.data;
               }
-            }
+              return [];
+            };
 
             let normalizedDining = [];
             if (dining.data) {
-              if (dining.data.Data && Array.isArray(dining.data.Data)) {
+              if (dining.data.Success && dining.data.Data && Array.isArray(dining.data.Data)) {
                 normalizedDining = dining.data.Data;
               } else if (Array.isArray(dining.data)) {
                 normalizedDining = dining.data;
@@ -170,7 +207,7 @@ const Hotel = () => {
             if (similarProps.data) {
               let similarPropsArray = [];
 
-              if (similarProps.data.Data && Array.isArray(similarProps.data.Data)) {
+              if (similarProps.data.Success && similarProps.data.Data && Array.isArray(similarProps.data.Data)) {
                 similarPropsArray = similarProps.data.Data;
               } else if (Array.isArray(similarProps.data)) {
                 similarPropsArray = similarProps.data;
@@ -189,16 +226,6 @@ const Hotel = () => {
                 ImageUrl: prop.ImageUrl || "",
               }));
             }
-
-            const normalizeArrayResponse = (response) => {
-              if (!response.data) return [];
-              if (response.data.Data && Array.isArray(response.data.Data)) {
-                return response.data.Data;
-              } else if (Array.isArray(response.data)) {
-                return response.data;
-              }
-              return [];
-            };
 
             return {
               ...hotel,
@@ -250,7 +277,7 @@ const Hotel = () => {
       setHotels(hotelsWithDetails);
     } catch (err) {
       console.error("Failed to load hotels:", err);
-      toast.error("Failed to load hotels");
+      safeToast.error("Failed to load hotels");
       setHotels([]);
     }
   };
@@ -320,10 +347,9 @@ const Hotel = () => {
     setCurrentPage(page);
   };
 
-  
   const handleAddImage = (imageUrl) => {
     if (imageUrl.trim() === "") {
-      toast.warning("Please enter an image URL");
+      safeToast.warning("Please enter an image URL");
       return;
     }
 
@@ -331,7 +357,7 @@ const Hotel = () => {
     const currentImages = Array.isArray(hotelState.Hotel_Pictures) ? hotelState.Hotel_Pictures : [];
 
     if (currentImages.includes(imageUrl)) {
-      toast.warning("This image URL already exists");
+      safeToast.warning("This image URL already exists");
       return;
     }
 
@@ -343,7 +369,7 @@ const Hotel = () => {
       setNewHotel({ ...newHotel, Hotel_Pictures: updatedImages });
     }
 
-    toast.success("Image added successfully");
+    safeToast.success("Image added successfully");
   };
 
   const handleRemoveImage = async (index) => {
@@ -360,11 +386,10 @@ const Hotel = () => {
           setNewHotel({ ...newHotel, Hotel_Pictures: updatedImages });
         }
 
-        toast.success("Image removed successfully! Remember to save changes.");
-        
+        safeToast.success("Image removed successfully! Remember to save changes.");
       } catch (error) {
         console.error("Error removing image:", error);
-        toast.error("Failed to remove image");
+        safeToast.error("Failed to remove image");
       }
     }
   };
@@ -388,69 +413,80 @@ const Hotel = () => {
 
   const handleAddSearch = async () => {
     try {
-      const res = await axiosInstance.post("/admin/hotel-search", searchDto);
-      toast.success("Hotel search added!");
-      fetchHotelSearches();
-      setShowSearchModal(false);
-      setSearchDto({
-        Location: "",
-        Checkin: "",
-        Checkout: "",
-        Guest_Type: "",
-        Guest_Count: 1,
-        Room_Count: 1,
-      });
+      const res = await axiosInstance.post("/admin/AdminHotelSearch", searchDto);
+      if (res.data.Success) {
+        safeToast.success("Hotel search added!");
+        fetchHotelSearches();
+        setShowSearchModal(false);
+        setSearchDto({
+          Location: "",
+          Checkin: "",
+          Checkout: "",
+          Guest_Type: "",
+          Guest_Count: 1,
+          Room_Count: 1,
+        });
+      } else {
+        safeToast.error(res.data.Message || "Failed to add hotel search");
+      }
     } catch (err) {
-      toast.error("Failed to add hotel search");
+      safeToast.error("Failed to add hotel search");
     }
   };
 
   const handleUpdateSearch = async () => {
     try {
-      await axiosInstance.put(`/admin/hotel-search/${editSearch.HotelSearchId}`, searchDto);
-      toast.success("Hotel search updated!");
-      fetchHotelSearches();
-      setShowSearchModal(false);
-      setEditSearch(null);
+      const res = await axiosInstance.put(`/admin/AdminHotelSearch/${editSearch.HotelSearchId}`, searchDto);
+      if (res.data.Success) {
+        safeToast.success("Hotel search updated!");
+        fetchHotelSearches();
+        setShowSearchModal(false);
+        setEditSearch(null);
+      } else {
+        safeToast.error(res.data.Message || "Failed to update search");
+      }
     } catch (err) {
-      toast.error("Failed to update search");
+      safeToast.error("Failed to update search");
     }
   };
 
   const handleDeleteSearch = async (id) => {
     try {
-      await axiosInstance.delete(`/admin/hotel-search/${id}`);
-      toast.success("Hotel search deleted!");
-      fetchHotelSearches();
+      const res = await axiosInstance.delete(`/admin/AdminHotelSearch/${id}`);
+      if (res.data.Success) {
+        safeToast.success("Hotel search deleted!");
+        fetchHotelSearches();
+      } else {
+        safeToast.error(res.data.Message || "Failed to delete search");
+      }
     } catch (err) {
-      toast.error("Failed to delete search");
+      safeToast.error("Failed to delete search");
     }
   };
 
- 
   const handleDeleteHotel = async (id) => {
     if (!window.confirm("Are you sure you want to delete this hotel?")) {
       return;
     }
 
     try {
-      const response = await axiosInstance.delete(`/admin/hotelroom/${id}`);
-      
+      const response = await axiosInstance.delete(`/admin/AdminHotel/${id}`);
+
       if (response.data.Success) {
-        toast.success("Hotel deleted successfully!");
+        safeToast.success("Hotel deleted successfully!");
         fetchHotels();
       } else {
-        toast.error(response.data.Message || "Failed to delete hotel");
+        safeToast.error(response.data.Message || "Failed to delete hotel");
       }
     } catch (err) {
       console.error("Delete hotel error:", err);
-      toast.error("Failed to delete hotel: " + (err.response?.data?.message || err.message));
+      safeToast.error("Failed to delete hotel: " + (err.response?.data?.Message || err.message));
     }
   };
 
   const handleOpenAddHotel = (searchId) => {
     const search = hotelSearches.find((hs) => hs.HotelSearchId === searchId);
-    if (!search) return toast.error("Hotel search not found!");
+    if (!search) return safeToast.error("Hotel search not found!");
 
     setNewHotel({
       Hotel_Search_Id: searchId,
@@ -486,59 +522,87 @@ const Hotel = () => {
         Hotel_Pictures: Array.isArray(newHotel.Hotel_Pictures) ? newHotel.Hotel_Pictures : [],
       };
 
-      const res = await axiosInstance.post("/admin/hotel", hotelData);
-      const hotelId = res.data;
+      const res = await axiosInstance.post("/admin/AdminHotel", hotelData);
 
-      if (roomData.length > 0) {
-        for (const room of roomData) {
-          await axiosInstance.post("/admin/hotelroom", { ...room, HotelId: hotelId });
-        }
+      if (res.data.Success) {
+        const hotelId = res.data.Data;
+
+        await saveRelatedData(hotelId);
+
+        safeToast.success("Hotel added with full details!");
+        setShowAddHotelModal(false);
+        resetFormData();
+        await fetchHotels();
+      } else {
+        safeToast.error(res.data.Message || "Failed to add hotel");
       }
-
-      if (amenitiesData.length > 0) {
-        for (const amenity of amenitiesData) {
-          await axiosInstance.post("/admin/hotelamenity", { ...amenity, HotelId: hotelId });
-        }
-      }
-
-      if (policiesData.length > 0) {
-        for (const policy of policiesData) {
-          await axiosInstance.post("/admin/hotelpolicy", { ...policy, HotelId: hotelId });
-        }
-      }
-
-      if (locationData.length > 0) {
-        for (const location of locationData) {
-          await axiosInstance.post("/AdminHotelLocation/add", { ...location, HotelId: hotelId });
-        }
-      }
-
-      if (Object.keys(diningData).length > 0) {
-        await axiosInstance.post("/AdminHotelDining/add", { ...diningData, HotelId: hotelId });
-      }
-
-      if (similarPropsData.length > 0) {
-        for (const prop of similarPropsData) {
-          await axiosInstance.post("/AdminSimilarProperty/add", { ...prop, HotelId: hotelId });
-        }
-      }
-
-      toast.success("Hotel added with full details!");
-
-      setShowAddHotelModal(false);
-      setRoomData([]);
-      setAmenitiesData([]);
-      setLocationData([]);
-      setPoliciesData([]);
-      setDiningData({});
-      setSimilarPropsData([]);
-      setNewHotel({ Hotel_Pictures: [] });
-
-      await fetchHotels();
     } catch (err) {
       console.error("Save hotel error:", err);
-      toast.error("Failed to add hotel: " + (err.response?.data?.message || err.message));
+      safeToast.error("Failed to add hotel: " + (err.response?.data?.Message || err.message));
     }
+  };
+
+  const saveRelatedData = async (hotelId) => {
+    const savePromises = [];
+
+    if (roomData.length > 0) {
+      roomData.forEach((room) => {
+        savePromises.push(axiosInstance.post("/admin/AdminHotelRoom", { ...room, HotelId: hotelId }));
+      });
+    }
+
+    if (amenitiesData.length > 0) {
+      amenitiesData.forEach((amenity) => {
+        savePromises.push(axiosInstance.post("/admin/AdminAmenity", { ...amenity, HotelId: hotelId }));
+      });
+    }
+
+    if (policiesData.length > 0) {
+      policiesData.forEach((policy) => {
+        savePromises.push(axiosInstance.post("/admin/AdminHotelPolicy", { ...policy, HotelId: hotelId }));
+      });
+    }
+
+    if (locationData.length > 0) {
+      locationData.forEach((location) => {
+        savePromises.push(axiosInstance.post("/admin/AdminHotelLocation", { ...location, HotelId: hotelId }));
+      });
+    }
+
+    if (Object.keys(diningData).length > 0) {
+      savePromises.push(axiosInstance.post("/admin/AdminHotelDining", { ...diningData, HotelId: hotelId }));
+    }
+
+    if (similarPropsData.length > 0) {
+      similarPropsData.forEach((prop) => {
+        savePromises.push(axiosInstance.post("/admin/AdminSimilarProperty", { ...prop, HotelId: hotelId }));
+      });
+    }
+
+    await Promise.all(savePromises);
+  };
+
+  const resetFormData = () => {
+    setNewHotel({
+      Hotel_Search_Id: "",
+      Hotel_Name: "",
+      Nearest_Location: "",
+      City: "",
+      Rating: 0,
+      Hotel_Description: "",
+      Price: 0,
+      Reviews: "",
+      FreeCancellation: false,
+      BreakfastIncluded: false,
+      AmenitiesDescription: "",
+      Hotel_Pictures: [],
+    });
+    setRoomData([]);
+    setAmenitiesData([]);
+    setLocationData([]);
+    setPoliciesData([]);
+    setDiningData({});
+    setSimilarPropsData([]);
   };
 
   const handleUpdateHotel = async () => {
@@ -558,201 +622,93 @@ const Hotel = () => {
         Hotel_Pictures: Array.isArray(editHotel.Hotel_Pictures) ? editHotel.Hotel_Pictures : [],
       };
 
-      console.log("Updating hotel with data:", hotelUpdateData);
-      console.log("Hotel ID being updated:", editHotel.HotelId);
+      const response = await axiosInstance.put(`/admin/AdminHotel/${editHotel.HotelId}`, hotelUpdateData);
 
-      try {
-        const response = await axiosInstance.put(`/admin/hotel/${editHotel.HotelId}`, hotelUpdateData);
-        console.log("Hotel update response:", response.data);
-        
+      if (response.data.Success) {
         await updateRelatedData();
-        toast.success("Hotel and details updated successfully!");
-      
+        safeToast.success("Hotel and details updated successfully!");
         await fetchHotels();
-        
-        setEditHotel(null);
-        setShowAddHotelModal(false);
-        setRoomData([]);
-        setAmenitiesData([]);
-        setLocationData([]);
-        setPoliciesData([]);
-        setDiningData({});
-        setSimilarPropsData([]);
-
-      } catch (err) {
-        if (err.response?.status === 400 && 
-            (err.response?.data?.includes('success') || 
-             err.response?.data?.message?.includes('success') ||
-             err.response?.data?.Message?.includes('success'))) {
-          
-          console.log("Handling 400 with success message as successful update");
-          
-          await updateRelatedData();
-          toast.success("Hotel and details updated successfully!");
-     
-          await fetchHotels();
-          
-          setEditHotel(null);
-          setShowAddHotelModal(false);
-          setRoomData([]);
-          setAmenitiesData([]);
-          setLocationData([]);
-          setPoliciesData([]);
-          setDiningData({});
-          setSimilarPropsData([]);
-          
-        } else {
-          console.error("Update error:", err);
-          const errorMessage = err.response?.data?.message || 
-                              err.response?.data?.Message ||
-                              err.response?.data ||
-                              err.message ||
-                              "Failed to update hotel";
-          toast.error(`Failed to update hotel: ${errorMessage}`);
-        }
+        handleCloseAddHotelModal();
+      } else {
+        safeToast.error(response.data.Message || "Failed to update hotel");
       }
-
     } catch (err) {
-      console.error("Unexpected error in handleUpdateHotel:", err);
-      toast.error("An unexpected error occurred while updating the hotel");
+      console.error("Update error:", err);
+      safeToast.error("Failed to update hotel: " + (err.response?.data?.Message || err.message));
     }
   };
 
-  const fetchHotelsForRefresh = async () => {
-    try {
-      const res = await axiosInstance.get("/admin/hotel");
-      console.log("Refresh hotels API response:", res.data);
+  const updateRelatedData = async () => {
+    const hotelId = editHotel.HotelId;
 
-      let hotelsData = [];
-      if (res.data && res.data.Data && Array.isArray(res.data.Data)) {
-        hotelsData = res.data.Data;
-      } else if (res.data && Array.isArray(res.data)) {
-        hotelsData = res.data;
+    for (const room of roomData) {
+      const roomDataToSend = { ...room, HotelId: hotelId };
+      if (room.RoomId) {
+        await axiosInstance.put(`/admin/AdminHotelRoom/${room.RoomId}`, roomDataToSend);
       } else {
-        console.warn("Unexpected hotels response structure:", res.data);
-        hotelsData = [];
+        await axiosInstance.post("/admin/AdminHotelRoom", roomDataToSend);
       }
+    }
 
-      const hotelsWithDetails = await Promise.all(
-        hotelsData.map(async (hotel) => {
-          try {
-            const [rooms, amenities, policies, locations, dining, similarProps] = await Promise.all([
-              axiosInstance.get(`/admin/hotelroom?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/admin/hotelamenity?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/admin/hotelpolicy?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/AdminHotelLocation?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/AdminHotelDining?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-              axiosInstance.get(`/AdminSimilarProperty?hotelId=${hotel.HotelId}`).catch(() => ({ data: [] })),
-            ]);
+    for (const amenity of amenitiesData) {
+      const amenityDataToSend = { ...amenity, HotelId: hotelId };
+      if (amenity.AmenityId) {
+        await axiosInstance.put(`/admin/AdminAmenity/${amenity.AmenityId}`, amenityDataToSend);
+      } else {
+        await axiosInstance.post("/admin/AdminAmenity", amenityDataToSend);
+      }
+    }
 
-            let hotelImages = [];
-            if (hotel.Hotel_Pictures) {
-              try {
-                if (typeof hotel.Hotel_Pictures === "string") {
-                  if (hotel.Hotel_Pictures.startsWith("[")) {
-                    hotelImages = JSON.parse(hotel.Hotel_Pictures);
-                  } else if (hotel.Hotel_Pictures.includes(",")) {
-                    hotelImages = hotel.Hotel_Pictures.split(",").filter((url) => url.trim() !== "");
-                  } else if (hotel.Hotel_Pictures.trim() !== "") {
-                    hotelImages = [hotel.Hotel_Pictures.trim()];
-                  }
-                } else if (Array.isArray(hotel.Hotel_Pictures)) {
-                  hotelImages = hotel.Hotel_Pictures;
-                }
-              } catch (error) {
-                console.error("Error parsing hotel images:", error);
-                hotelImages = [];
-              }
-            }
+    for (const policy of policiesData) {
+      const policyDataToSend = { ...policy, HotelId: hotelId };
+      if (policy.PolicyId) {
+        await axiosInstance.put(`/admin/AdminHotelPolicy/${policy.PolicyId}`, policyDataToSend);
+      } else {
+        await axiosInstance.post("/admin/AdminHotelPolicy", policyDataToSend);
+      }
+    }
 
-            if (hotelImages.length === 0 && hotel.Hotel_PicturesJson) {
-              try {
-                if (hotel.Hotel_PicturesJson.includes(",")) {
-                  hotelImages = hotel.Hotel_PicturesJson.split(",").filter((url) => url.trim() !== "");
-                }
-              } catch (error) {
-                console.error("Error parsing Hotel_PicturesJson:", error);
-              }
-            }
+    for (const location of locationData) {
+      const locationDataToSend = { ...location, HotelId: hotelId };
+      if (location.LocationId) {
+        await axiosInstance.put(`/admin/AdminHotelLocation/${location.LocationId}`, locationDataToSend);
+      } else {
+        await axiosInstance.post("/admin/AdminHotelLocation", locationDataToSend);
+      }
+    }
 
-            const normalizeArrayResponse = (response) => {
-              if (!response.data) return [];
-              if (response.data.Data && Array.isArray(response.data.Data)) {
-                return response.data.Data;
-              } else if (Array.isArray(response.data)) {
-                return response.data;
-              }
-              return [];
-            };
+    if (Object.keys(diningData).length > 0) {
+      const diningDataToSend = { ...diningData, HotelId: hotelId };
+      if (diningData.DiningId) {
+        await axiosInstance.put(`/admin/AdminHotelDining/${diningData.DiningId}`, diningDataToSend);
+      } else {
+        await axiosInstance.post("/admin/AdminHotelDining", diningDataToSend);
+      }
+    }
 
-            return {
-              ...hotel,
-              Id: hotel.HotelId,
-              Hotel_Pictures: hotelImages,
-              rooms: normalizeArrayResponse(rooms),
-              amenities: normalizeArrayResponse(amenities),
-              policies: normalizeArrayResponse(policies),
-              locations: normalizeArrayResponse(locations),
-              dining: normalizeArrayResponse(dining),
-              similarProperties: normalizeArrayResponse(similarProps),
-              hasDetails: {
-                rooms: normalizeArrayResponse(rooms).length > 0,
-                amenities: normalizeArrayResponse(amenities).length > 0,
-                policies: normalizeArrayResponse(policies).length > 0,
-                locations: normalizeArrayResponse(locations).length > 0,
-                dining: normalizeArrayResponse(dining).length > 0,
-                similarProperties: normalizeArrayResponse(similarProps).length > 0,
-                images: hotelImages.length > 0,
-              },
-            };
-          } catch (error) {
-            console.error(`Error fetching details for hotel ${hotel.HotelId}:`, error);
-            return {
-              ...hotel,
-              Id: hotel.HotelId,
-              Hotel_Pictures: [],
-              rooms: [],
-              amenities: [],
-              policies: [],
-              locations: [],
-              dining: [],
-              similarProperties: [],
-              hasDetails: {
-                rooms: false,
-                amenities: false,
-                policies: false,
-                locations: false,
-                dining: false,
-                similarProperties: false,
-                images: false,
-              },
-            };
-          }
-        })
-      );
-
-      setHotels(hotelsWithDetails);
-      return hotelsWithDetails;
-    } catch (err) {
-      console.error("Failed to refresh hotels:", err);
-      toast.error("Failed to refresh hotels");
-      return [];
+    for (const prop of similarPropsData) {
+      const propDataToSend = { ...prop, HotelId: hotelId };
+      if (prop.SimilarId) {
+        await axiosInstance.put(`/admin/AdminSimilarProperty/${prop.SimilarId}`, propDataToSend);
+      } else {
+        await axiosInstance.post("/admin/AdminSimilarProperty", propDataToSend);
+      }
     }
   };
 
   const handleEditHotel = (hotel) => {
     console.log("Editing hotel:", hotel);
-    
+
     let hotelImages = [];
     if (hotel.Hotel_Pictures) {
       if (Array.isArray(hotel.Hotel_Pictures)) {
         hotelImages = hotel.Hotel_Pictures;
-      } else if (typeof hotel.Hotel_Pictures === 'string') {
+      } else if (typeof hotel.Hotel_Pictures === "string") {
         try {
-          if (hotel.Hotel_Pictures.startsWith('[')) {
+          if (hotel.Hotel_Pictures.startsWith("[")) {
             hotelImages = JSON.parse(hotel.Hotel_Pictures);
-          } else if (hotel.Hotel_Pictures.includes(',')) {
-            hotelImages = hotel.Hotel_Pictures.split(',').filter(url => url.trim() !== '');
+          } else if (hotel.Hotel_Pictures.includes(",")) {
+            hotelImages = hotel.Hotel_Pictures.split(",").filter((url) => url.trim() !== "");
           }
         } catch (error) {
           console.error("Error parsing images during edit:", error);
@@ -763,371 +719,24 @@ const Hotel = () => {
 
     const hotelWithProcessedImages = {
       ...hotel,
-      Hotel_Pictures: hotelImages
+      Hotel_Pictures: hotelImages,
     };
 
     setEditHotel(hotelWithProcessedImages);
-    setRoomData(hotel.rooms && Array.isArray(hotel.rooms) ? hotel.rooms.map(room => ({
-      RoomId: room.RoomId,
-      HotelId: room.HotelId,
-      AmenityId: room.AmenityId || 0,
-      Room_Image: room.Room_Image || "",
-      Room_Type: room.Room_Type || "",
-      Price: room.Price || 0,
-      Reviews_Count: room.Reviews_Count || 0,
-      Reviews_Description: room.Reviews_Description || "",
-      Reviewer_Name: room.Reviewer_Name || "",
-      Review_Date: room.Review_Date || "",
-      Rating: room.Rating || 0,
-      Selectroom_count: room.Selectroom_count || 0,
-      Available_Rooms: room.Available_Rooms || 0,
-      MaximumGuest_Count: room.MaximumGuest_Count || 0,
-      Sqft: room.Sqft || 0,
-      Bed_Count: room.Bed_Count || 0,
-      Bathroom_Count: room.Bathroom_Count || 0,
-      Room_Facility_Description: room.Room_Facility_Description || ""
-    })) : []);
-    
-    setAmenitiesData(hotel.amenities && Array.isArray(hotel.amenities) ? hotel.amenities.map(amenity => ({
-      AmenityId: amenity.AmenityId,
-      HotelId: amenity.HotelId,
-      Amenity_Name: amenity.Amenity_Name || "",
-      Amenities_Description: amenity.Amenities_Description || ""
-    })) : []);
+    setRoomData(hotel.rooms || []);
+    setAmenitiesData(hotel.amenities || []);
+    setPoliciesData(hotel.policies || []);
+    setLocationData(hotel.locations || []);
+    setDiningData(hotel.dining && hotel.dining.length > 0 ? hotel.dining[0] : {});
+    setSimilarPropsData(hotel.similarProperties || []);
 
-    setPoliciesData(hotel.policies && Array.isArray(hotel.policies) ? hotel.policies.map(policy => ({
-      PolicyId: policy.PolicyId,
-      HotelId: policy.HotelId,
-      CheckInTime: policy.CheckInTime || "",
-      CheckOutTime: policy.CheckOutTime || "",
-      GuestPolicy: policy.GuestPolicy || "",
-      CancellationPolicy: policy.CancellationPolicy || "",
-      IdProofPolicy: policy.IdProofPolicy || "",
-      AdditionalNotes: policy.AdditionalNotes || ""
-    })) : []);
-
-    setLocationData(hotel.locations && Array.isArray(hotel.locations) ? hotel.locations.map(location => ({
-      LocationId: location.LocationId,
-      HotelId: location.HotelId,
-      Address: location.Address || "",
-      NearbyLandmarks: location.NearbyLandmarks || "",
-      MapUrl: location.MapUrl || "",
-      EmbedUrl: location.EmbedUrl || ""
-    })) : []);
-
-    if (hotel.dining && Array.isArray(hotel.dining) && hotel.dining.length > 0) {
-      const firstDining = hotel.dining[0];
-      setDiningData({
-        DiningId: firstDining.DiningId,
-        HotelId: firstDining.HotelId,
-        DiningExperience: firstDining.DiningExperience || "",
-        MealOptions: firstDining.MealOptions || "",
-        RestaurantHours: firstDining.RestaurantHours || "",
-        RestaurantDescription: firstDining.RestaurantDescription || "",
-        SpecialFeatures: firstDining.SpecialFeatures || ""
-      });
-    } else if (hotel.dining && typeof hotel.dining === 'object' && Object.keys(hotel.dining).length > 0) {
-      setDiningData({
-        DiningId: hotel.dining.DiningId,
-        HotelId: hotel.dining.HotelId,
-        DiningExperience: hotel.dining.DiningExperience || "",
-        MealOptions: hotel.dining.MealOptions || "",
-        RestaurantHours: hotel.dining.RestaurantHours || "",
-        RestaurantDescription: hotel.dining.RestaurantDescription || "",
-        SpecialFeatures: hotel.dining.SpecialFeatures || ""
-      });
-    } else {
-      setDiningData({});
-    }
-
-    const fixedSimilarProps = hotel.similarProperties && Array.isArray(hotel.similarProperties)
-      ? hotel.similarProperties.map(prop => ({
-          SimilarId: prop.SimilarId || prop.PropId || prop.Id,
-          HotelId: prop.HotelId,
-          SimilarHotel_Name: prop.SimilarHotel_Name || prop.PropertyName || prop.Hotel_Name || "",
-          Location: prop.Location || prop.City || "",
-          Reviews: prop.Reviews || "",
-          Rating: prop.Rating || 0,
-          Price_Per_Night: prop.Price_Per_Night || prop.Price || 0,
-          ImageUrl: prop.ImageUrl || ""
-        }))
-      : [];
-
-    const uniqueSimilarProps = fixedSimilarProps.filter((prop, index, self) =>
-      index === self.findIndex(p => 
-        p.SimilarId === prop.SimilarId || 
-        p.SimilarHotel_Name === prop.SimilarHotel_Name
-      )
-    );
-    
-    setSimilarPropsData(uniqueSimilarProps);
-    
     setShowAddHotelModal(true);
   };
 
-  const updateRelatedData = async () => {
-    const hotelId = editHotel.HotelId;
-    let updateResults = {
-      rooms: { success: 0, failed: 0 },
-      amenities: { success: 0, failed: 0 },
-      policies: { success: 0, failed: 0 },
-      locations: { success: 0, failed: 0 },
-      dining: { success: 0, failed: 0 },
-      similarProperties: { success: 0, failed: 0 },
-    };
-
-    console.log("Starting updateRelatedData for hotel:", hotelId);
-
-   
-    for (const room of roomData) {
-      const roomDataToSend = {
-        ...room,
-        HotelId: hotelId,
-        Price: room.Price || 0,
-        Rating: room.Rating || 0,
-        Reviews_Count: room.Reviews_Count || 0,
-        Selectroom_count: room.Selectroom_count || 0,
-        Available_Rooms: room.Available_Rooms || 0,
-        MaximumGuest_Count: room.MaximumGuest_Count || 0,
-        Sqft: room.Sqft || 0,
-        Bed_Count: room.Bed_Count || 0,
-        Bathroom_Count: room.Bathroom_Count || 0,
-      };
-
-      try {
-        console.log("Updating room:", room.RoomId ? `ID ${room.RoomId}` : "new room");
-        if (room.RoomId) {
-          await axiosInstance.put(`/admin/hotelroom/${room.RoomId}`, roomDataToSend);
-        } else {
-          await axiosInstance.post(`/admin/hotelroom`, roomDataToSend);
-        }
-        updateResults.rooms.success++;
-      } catch (error) {
-        console.error("Room update error:", error);
-        updateResults.rooms.failed++;
-        toast.error(`Failed to update room: ${error.response?.data?.message || error.message}`);
-      }
-    }
-
-    
-    for (const amenity of amenitiesData) {
-      const amenityDataToSend = {
-        ...amenity,
-        HotelId: hotelId,
-      };
-
-      try {
-        console.log("Updating amenity:", amenity.AmenityId ? `ID ${amenity.AmenityId}` : "new amenity");
-        if (amenity.AmenityId) {
-          await axiosInstance.put(`/admin/hotelamenity/${amenity.AmenityId}`, amenityDataToSend);
-        } else {
-          await axiosInstance.post(`/admin/hotelamenity`, amenityDataToSend);
-        }
-        updateResults.amenities.success++;
-      } catch (error) {
-        console.error("Amenity update error:", error);
-        updateResults.amenities.failed++;
-        toast.error(`Failed to update amenity: ${error.response?.data?.message || error.message}`);
-      }
-    }
-
-    
-    for (const policy of policiesData) {
-      const policyDataToSend = {
-        ...policy,
-        HotelId: hotelId,
-      };
-
-      try {
-        console.log("Updating policy:", policy.PolicyId ? `ID ${policy.PolicyId}` : "new policy");
-        if (policy.PolicyId) {
-          await axiosInstance.put(`/admin/hotelpolicy/${policy.PolicyId}`, policyDataToSend);
-        } else {
-          await axiosInstance.post(`/admin/hotelpolicy`, policyDataToSend);
-        }
-        updateResults.policies.success++;
-      } catch (error) {
-        console.error("Policy update error:", error);
-        updateResults.policies.failed++;
-        toast.error(`Failed to update policy: ${error.response?.data?.message || error.message}`);
-      }
-    }
-
-    
-    for (const location of locationData) {
-      const locationDataToSend = {
-        ...location,
-        HotelId: hotelId,
-      };
-
-      try {
-        console.log("Updating location:", location.LocationId ? `ID ${location.LocationId}` : "new location");
-        if (location.LocationId) {
-          try {
-            await axiosInstance.put(`/AdminHotelLocation/update/${location.LocationId}`, locationDataToSend);
-          } catch (firstError) {
-            console.warn("First location endpoint failed, trying alternative:", firstError.message);
-            await axiosInstance.put(`/admin/hotellocation/${location.LocationId}`, locationDataToSend);
-          }
-        } else {
-          await axiosInstance.post(`/AdminHotelLocation/add`, locationDataToSend);
-        }
-        updateResults.locations.success++;
-      } catch (error) {
-        console.error("Location update error:", error);
-        updateResults.locations.failed++;
-        toast.error(`Failed to update location: ${error.response?.data?.message || error.message}`);
-      }
-    }
-
-    try {
-      const existingLocationsResponse = await axiosInstance.get(`/AdminHotelLocation?hotelId=${hotelId}`);
-      
-      let existingLocations = [];
-      if (existingLocationsResponse.data) {
-        if (Array.isArray(existingLocationsResponse.data)) {
-          existingLocations = existingLocationsResponse.data;
-        } else if (existingLocationsResponse.data.Data && Array.isArray(existingLocationsResponse.data.Data)) {
-          existingLocations = existingLocationsResponse.data.Data;
-        } else if (existingLocationsResponse.data.data && Array.isArray(existingLocationsResponse.data.data)) {
-          existingLocations = existingLocationsResponse.data.data;
-        } else if (typeof existingLocationsResponse.data === 'object') {
-          existingLocations = [existingLocationsResponse.data];
-        }
-      }
-
-      const currentLocationIds = locationData.filter((loc) => loc.LocationId).map((loc) => loc.LocationId);
-      const locationsToDelete = existingLocations.filter((existing) => 
-        !currentLocationIds.includes(existing.LocationId)
-      );
-
-      console.log("Deleting locations:", locationsToDelete);
-
-      for (const locationToDelete of locationsToDelete) {
-        console.log(`Deleting location with ID: ${locationToDelete.LocationId}`);
-        try {
-          await axiosInstance.delete(`/AdminHotelLocation/delete/${locationToDelete.LocationId}`);
-          console.log(`Successfully deleted location: ${locationToDelete.LocationId}`);
-        } catch (deleteError) {
-          console.error(`Failed to delete location ${locationToDelete.LocationId}:`, deleteError);
-        }
-      }
-    } catch (error) {
-      console.error("Error processing location deletions:", error);
-    }
-
-    
-    if (Object.keys(diningData).length > 0) {
-      const diningWithHotelId = {
-        ...diningData,
-        HotelId: hotelId,
-      };
-
-      Object.keys(diningWithHotelId).forEach((key) => {
-        if (diningWithHotelId[key] === null || diningWithHotelId[key] === undefined || diningWithHotelId[key] === "NaN") {
-          diningWithHotelId[key] = "";
-        }
-      });
-
-      try {
-        console.log("Updating dining:", diningData.DiningId ? `ID ${diningData.DiningId}` : "new dining");
-        if (diningData.DiningId) {
-          try {
-            await axiosInstance.put(`/AdminHotelDining/update/${diningData.DiningId}`, diningWithHotelId);
-          } catch (firstError) {
-            console.warn("First dining endpoint failed, trying alternative:", firstError.message);
-            await axiosInstance.put(`/admin/hoteldining/${diningData.DiningId}`, diningWithHotelId);
-          }
-        } else {
-          await axiosInstance.post(`/AdminHotelDining/add`, diningWithHotelId);
-        }
-        updateResults.dining.success++;
-      } catch (error) {
-        console.error("Dining update error:", error);
-        updateResults.dining.failed++;
-        toast.error(`Failed to update dining: ${error.response?.data?.message || error.message}`);
-      }
-    }
-
-    if (similarPropsData.length > 0) {
-      try {
-        const existingPropsResponse = await axiosInstance.get(`/AdminSimilarProperty?hotelId=${hotelId}`);
-        
-        let existingProps = [];
-        if (existingPropsResponse.data) {
-          if (Array.isArray(existingPropsResponse.data)) {
-            existingProps = existingPropsResponse.data;
-          } else if (existingPropsResponse.data.Data && Array.isArray(existingPropsResponse.data.Data)) {
-            existingProps = existingPropsResponse.data.Data;
-          } else if (existingPropsResponse.data.data && Array.isArray(existingPropsResponse.data.data)) {
-            existingProps = existingPropsResponse.data.data;
-          } else if (typeof existingPropsResponse.data === 'object') {
-            existingProps = [existingPropsResponse.data];
-          }
-        }
-
-        console.log("Existing similar properties:", existingProps);
-        console.log("New similar properties data:", similarPropsData);
-
-        for (const prop of similarPropsData) {
-          const propDataToSend = {
-            HotelId: hotelId,
-            SimilarHotel_Name: prop.SimilarHotel_Name?.trim() || "",
-            Location: prop.Location?.trim() || "",
-            Reviews: prop.Reviews?.trim() || "",
-            Rating: prop.Rating || 0,
-            Price_Per_Night: prop.Price_Per_Night || 0,
-            ImageUrl: prop.ImageUrl?.trim() || ""
-          };
-
-          const existingProp = Array.isArray(existingProps) 
-            ? existingProps.find(
-                (existing) =>
-                  existing.SimilarId === prop.SimilarId ||
-                  (existing.SimilarHotel_Name === prop.SimilarHotel_Name && existing.HotelId === hotelId)
-              )
-            : null;
-
-          if (existingProp && prop.SimilarId) {
-            console.log(`Updating existing similar property with ID: ${prop.SimilarId}`);
-            await axiosInstance.put(`/AdminSimilarProperty/update/${prop.SimilarId}`, propDataToSend);
-            updateResults.similarProperties.success++;
-          } else if (!existingProp) {
-            console.log("Creating new similar property");
-            await axiosInstance.post(`/AdminSimilarProperty/add`, propDataToSend);
-            updateResults.similarProperties.success++;
-          } else {
-            console.log("Skipping duplicate similar property:", prop.SimilarHotel_Name);
-            updateResults.similarProperties.success++;
-          }
-        }
-
-        if (Array.isArray(existingProps)) {
-          const currentPropIds = similarPropsData.filter((prop) => prop.SimilarId).map((prop) => prop.SimilarId);
-          const propsToDelete = existingProps.filter((existing) => !currentPropIds.includes(existing.SimilarId));
-
-          for (const propToDelete of propsToDelete) {
-            console.log(`Deleting removed similar property: ${propToDelete.SimilarId}`);
-            await axiosInstance.delete(`/AdminSimilarProperty/delete/${propToDelete.SimilarId}`);
-          }
-        }
-      } catch (error) {
-        console.error("Similar properties update error:", error);
-        updateResults.similarProperties.failed++;
-        toast.error(`Failed to update similar properties: ${error.response?.data?.message || error.message}`);
-      }
-    }
-
-    console.log("Update results:", updateResults);
-
-    const totalSuccess = Object.values(updateResults).reduce((sum, result) => sum + result.success, 0);
-    const totalFailed = Object.values(updateResults).reduce((sum, result) => sum + result.failed, 0);
-
-    if (totalFailed > 0) {
-      toast.warning(`Updated ${totalSuccess} items successfully, ${totalFailed} items failed. Check console for details.`);
-    } else if (totalSuccess > 0) {
-      toast.success(`All ${totalSuccess} detail items updated successfully!`);
-    }
+  const handleCloseAddHotelModal = () => {
+    setShowAddHotelModal(false);
+    setEditHotel(null);
+    resetFormData();
   };
 
   const handleEditSearch = (search) => {
@@ -1145,15 +754,15 @@ const Hotel = () => {
 
   const handleViewDetails = async (hotel) => {
     if (!hotel || !hotel.HotelId) {
-      toast.error("Invalid hotel data");
+      safeToast.error("Invalid hotel data");
       return;
     }
 
     setIsLoadingDetails(true);
-    try { 
-      await fetchHotels(); 
+    try {
+      await fetchHotels();
       const currentHotel = hotels.find((h) => h.HotelId === hotel.HotelId);
-      
+
       if (currentHotel) {
         setSelectedHotelDetails(currentHotel);
       } else {
@@ -1162,7 +771,7 @@ const Hotel = () => {
       setShowDetailsModal(true);
     } catch (error) {
       console.error("Error loading hotel details:", error);
-      toast.error("Failed to load hotel details");
+      safeToast.error("Failed to load hotel details");
       setSelectedHotelDetails(hotel);
       setShowDetailsModal(true);
     } finally {
@@ -1170,34 +779,9 @@ const Hotel = () => {
     }
   };
 
-  const handleCloseAddHotelModal = () => {
-    setShowAddHotelModal(false);
-    setEditHotel(null);
-    setNewHotel({
-      Hotel_Search_Id: "",
-      Hotel_Name: "",
-      Nearest_Location: "",
-      City: "",
-      Rating: 0,
-      Hotel_Description: "",
-      Price: 0,
-      Reviews: "",
-      FreeCancellation: false,
-      BreakfastIncluded: false,
-      AmenitiesDescription: "",
-      Hotel_Pictures: []
-    });
-    setRoomData([]);
-    setAmenitiesData([]);
-    setLocationData([]);
-    setPoliciesData([]);
-    setDiningData({});
-    setSimilarPropsData([]);
-  };
-
   const handleRemoveSimilarProperty = async (index) => {
     const propertyToRemove = similarPropsData[index];
-    
+
     if (window.confirm("Are you sure you want to remove this similar property?")) {
       try {
         if (propertyToRemove.SimilarId) {
@@ -1206,7 +790,6 @@ const Hotel = () => {
         const updatedProps = similarPropsData.filter((_, i) => i !== index);
         setSimilarPropsData(updatedProps);
         toast.success("Similar property removed!");
-        
       } catch (error) {
         console.error("Failed to delete similar property:", error);
         toast.error("Failed to remove similar property from database");
@@ -1216,17 +799,15 @@ const Hotel = () => {
 
   const handleRemoveRoom = async (index) => {
     const roomToRemove = roomData[index];
-    
+
     if (window.confirm("Are you sure you want to remove this room?")) {
       try {
-       
         if (roomToRemove.RoomId) {
-          await axiosInstance.delete(`/admin/hotelroom/${roomToRemove.RoomId}`);
+          await axiosInstance.delete(`/admin/AdminHotelRoom/${roomToRemove.RoomId}`);
         }
         const updatedRooms = roomData.filter((_, i) => i !== index);
         setRoomData(updatedRooms);
         toast.success("Room removed!");
-        
       } catch (error) {
         console.error("Failed to delete room:", error);
         toast.error("Failed to remove room from database");
@@ -1234,38 +815,34 @@ const Hotel = () => {
     }
   };
 
-const handleRemoveDining = async () => {
-  if (window.confirm("Are you sure you want to remove dining information?")) {
-    try {
-   
-      if (diningData.DiningId) {
-        await axiosInstance.delete(`/AdminHotelDining/delete/${diningData.DiningId}`);
+  const handleRemoveDining = async () => {
+    if (window.confirm("Are you sure you want to remove dining information?")) {
+      try {
+        if (diningData.DiningId) {
+          await axiosInstance.delete(`/AdminHotelDining/delete/${diningData.DiningId}`);
+        }
+
+        setDiningData({});
+        toast.success("Dining information removed!");
+      } catch (error) {
+        console.error("Failed to delete dining information:", error);
+        toast.error("Failed to remove dining information from database");
       }
-    
-      setDiningData({});
-      toast.success("Dining information removed!");
-      
-    } catch (error) {
-      console.error("Failed to delete dining information:", error);
-      toast.error("Failed to remove dining information from database");
     }
-  }
-};
+  };
 
   const handleRemoveAmenity = async (index) => {
     const amenityToRemove = amenitiesData[index];
-    
+
     if (window.confirm("Are you sure you want to remove this amenity?")) {
       try {
-      
         if (amenityToRemove.AmenityId) {
-          await axiosInstance.delete(`/admin/hotelamenity/${amenityToRemove.AmenityId}`);
+          await axiosInstance.delete(`/admin/AdminAmenity/${amenityToRemove.AmenityId}`);
         }
-        
+
         const updatedAmenities = amenitiesData.filter((_, i) => i !== index);
         setAmenitiesData(updatedAmenities);
         toast.success("Amenity removed!");
-        
       } catch (error) {
         console.error("Failed to delete amenity:", error);
         toast.error("Failed to remove amenity from database");
@@ -1275,18 +852,16 @@ const handleRemoveDining = async () => {
 
   const handleRemovePolicy = async (index) => {
     const policyToRemove = policiesData[index];
-    
+
     if (window.confirm("Are you sure you want to remove this policy?")) {
       try {
-        
         if (policyToRemove.PolicyId) {
-          await axiosInstance.delete(`/admin/hotelpolicy/${policyToRemove.PolicyId}`);
+          await axiosInstance.delete(`/admin/AdminHotelpolicy/${policyToRemove.PolicyId}`);
         }
-   
+
         const updatedPolicies = policiesData.filter((_, i) => i !== index);
         setPoliciesData(updatedPolicies);
         toast.success("Policy removed!");
-        
       } catch (error) {
         console.error("Failed to delete policy:", error);
         toast.error("Failed to remove policy from database");
@@ -1296,18 +871,16 @@ const handleRemoveDining = async () => {
 
   const handleRemoveLocation = async (index) => {
     const locationToRemove = locationData[index];
-    
+
     if (window.confirm("Are you sure you want to remove this location?")) {
       try {
-      
         if (locationToRemove.LocationId) {
-          await axiosInstance.delete(`/AdminHotelLocation/delete/${locationToRemove.LocationId}`);
+          await axiosInstance.delete(`/admin/AdminHotelLocation/${locationToRemove.LocationId}`);
         }
-  
+
         const updatedLocations = locationData.filter((_, i) => i !== index);
         setLocationData(updatedLocations);
         toast.success("Location removed!");
-        
       } catch (error) {
         console.error("Failed to delete location:", error);
         toast.error("Failed to remove location from database");
@@ -1399,286 +972,6 @@ const handleRemoveDining = async () => {
           </div>
         )}
 
-   
-        {showAddHotelModal && (
-  <div className="modal show d-block bg-dark bg-opacity-50">
-    <div className="modal-dialog modal-xl">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">{editHotel ? "Edit Hotel" : "Add Hotel"}</h5>
-          <button className="btn-close" onClick={handleCloseAddHotelModal}></button>
-        </div>
-        <div className="modal-body">
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <input
-                type="text"
-                className="form-control mb-2"
-                placeholder="Hotel Name"
-                value={editHotel ? editHotel.Hotel_Name : newHotel.Hotel_Name}
-                onChange={(e) => {
-                  if (editHotel) {
-                    setEditHotel({ ...editHotel, Hotel_Name: e.target.value });
-                  } else {
-                    setNewHotel({ ...newHotel, Hotel_Name: e.target.value });
-                  }
-                }}
-              />
-              <input
-                type="text"
-                className="form-control mb-2"
-                placeholder="Nearest Location"
-                value={editHotel ? editHotel.Nearest_Location : newHotel.Nearest_Location}
-                onChange={(e) => {
-                  if (editHotel) {
-                    setEditHotel({ ...editHotel, Nearest_Location: e.target.value });
-                  } else {
-                    setNewHotel({ ...newHotel, Nearest_Location: e.target.value });
-                  }
-                }}
-              />
-              <input
-                type="text"
-                className="form-control mb-2"
-                placeholder="City"
-                value={editHotel ? editHotel.City : newHotel.City}
-                onChange={(e) => {
-                  if (editHotel) {
-                    setEditHotel({ ...editHotel, City: e.target.value });
-                  } else {
-                    setNewHotel({ ...newHotel, City: e.target.value });
-                  }
-                }}
-              />
-              <input
-                type="number"
-                step="0.1"
-                className="form-control mb-2"
-                placeholder="Rating"
-                value={editHotel ? (editHotel.Rating === 0 ? "" : editHotel.Rating) : (newHotel.Rating === 0 ? "" : newHotel.Rating)}
-                onChange={(e) => {
-                  const value = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
-                  if (editHotel) {
-                    setEditHotel({ ...editHotel, Rating: value });
-                  } else {
-                    setNewHotel({ ...newHotel, Rating: value });
-                  }
-                }}
-              />
-              <input
-                type="number"
-                step="0.01"
-                className="form-control mb-2"
-                placeholder="Price"
-                value={editHotel ? (editHotel.Price === 0 ? "" : editHotel.Price) : (newHotel.Price === 0 ? "" : newHotel.Price)}
-                onChange={(e) => {
-                  const value = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
-                  if (editHotel) {
-                    setEditHotel({ ...editHotel, Price: value });
-                  } else {
-                    setNewHotel({ ...newHotel, Price: value });
-                  }
-                }}
-              />
-            </div>
-            <div className="col-md-6">
-              <textarea
-                className="form-control mb-2"
-                placeholder="Hotel Description"
-                value={editHotel ? editHotel.Hotel_Description : newHotel.Hotel_Description}
-                onChange={(e) => {
-                  if (editHotel) {
-                    setEditHotel({ ...editHotel, Hotel_Description: e.target.value });
-                  } else {
-                    setNewHotel({ ...newHotel, Hotel_Description: e.target.value });
-                  }
-                }}
-              />
-              <textarea
-                className="form-control mb-2"
-                placeholder="Reviews"
-                value={editHotel ? editHotel.Reviews : newHotel.Reviews}
-                onChange={(e) => {
-                  if (editHotel) {
-                    setEditHotel({ ...editHotel, Reviews: e.target.value });
-                  } else {
-                    setNewHotel({ ...newHotel, Reviews: e.target.value });
-                  }
-                }}
-              />
-              <textarea
-                className="form-control mb-2"
-                placeholder="Amenities Description"
-                value={editHotel ? editHotel.AmenitiesDescription : newHotel.AmenitiesDescription}
-                onChange={(e) => {
-                  if (editHotel) {
-                    setEditHotel({ ...editHotel, AmenitiesDescription: e.target.value });
-                  } else {
-                    setNewHotel({ ...newHotel, AmenitiesDescription: e.target.value });
-                  }
-                }}
-              />
-              <div className="form-check mb-2">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  checked={editHotel ? editHotel.FreeCancellation : newHotel.FreeCancellation}
-                  onChange={(e) => {
-                    if (editHotel) {
-                      setEditHotel({ ...editHotel, FreeCancellation: e.target.checked });
-                    } else {
-                      setNewHotel({ ...newHotel, FreeCancellation: e.target.checked });
-                    }
-                  }}
-                />
-                <label className="form-check-label">Free Cancellation</label>
-              </div>
-              <div className="form-check mb-2">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  checked={editHotel ? editHotel.BreakfastIncluded : newHotel.BreakfastIncluded}
-                  onChange={(e) => {
-                    if (editHotel) {
-                      setEditHotel({ ...editHotel, BreakfastIncluded: e.target.checked });
-                    } else {
-                      setNewHotel({ ...newHotel, BreakfastIncluded: e.target.checked });
-                    }
-                  }}
-                />
-                <label className="form-check-label">Breakfast Included</label>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-3">
-            <h6 className="fw-bold">Hotel Images</h6>
-            <div className="d-flex align-items-center mb-2">
-              <input
-                type="text"
-                className="form-control me-2"
-                placeholder="Enter image URL"
-                id="imageUrlInput"
-                style={{ width: "300px" }}
-              />
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => {
-                  const input = document.getElementById("imageUrlInput");
-                  if (input) {
-                    handleAddImage(input.value);
-                    input.value = "";
-                  }
-                }}
-              >
-                Add Image
-              </button>
-            </div>
-
-            <div className="d-flex flex-wrap gap-2 mb-2">
-              {((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || []).map((image, index) => (
-                <div key={index} className="position-relative d-inline-block">
-                  <img
-                    src={image}
-                    alt={`Hotel ${index + 1}`}
-                    className="img-thumbnail"
-                    style={{ width: "100px", height: "100px", objectFit: "cover" }}
-                    onError={(e) => {
-                      e.target.src = "https://via.placeholder.com/100x100?text=Image+Error";
-                    }}
-                  />
-                  <button
-                    className="btn btn-danger btn-sm position-absolute top-0 end-0"
-                    style={{ transform: "translate(50%, -50%)" }}
-                    onClick={() => handleRemoveImage(index)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || []).length > 0 && (
-              <button className="btn btn-outline-info btn-sm" onClick={handleOpenImageModal}>
-                View Images ({((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || []).length})
-              </button>
-            )}
-          </div>
-
-          <div className="mb-3 d-flex flex-wrap gap-2">
-            <button className="btn btn-outline-primary" onClick={() => setShowRoomOptionsModal(true)}>
-              Room Options ({roomData.length})
-            </button>
-            <button className="btn btn-outline-primary" onClick={() => setShowAmenitiesModal(true)}>
-              Amenities ({amenitiesData.length})
-            </button>
-            <button className="btn btn-outline-primary" onClick={() => setShowPoliciesModal(true)}>
-              Policies ({policiesData.length})
-            </button>
-            <button className="btn btn-outline-primary" onClick={() => setShowLocationModal(true)}>
-              Location ({locationData.length})
-            </button>
-            <button className="btn btn-outline-primary" onClick={() => setShowSimilarPropertiesModal(true)}>
-              Similar Properties ({similarPropsData.length})
-            </button>
-            <button className="btn btn-outline-primary" onClick={() => setShowDiningModal(true)}>
-              Dining {Object.keys(diningData).length > 0 ? "(1)" : "(0)"}
-            </button>
-          </div>
-
-          <div className="text-end">
-            <button className="btn btn-success me-2" onClick={editHotel ? handleUpdateHotel : handleSaveHotel}>
-              {editHotel ? "Update" : "Save"}
-            </button>
-            <button className="btn btn-secondary" onClick={handleCloseAddHotelModal}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-      
-        {showImageModal && (
-          <div className="modal show d-block bg-dark bg-opacity-75">
-            <div className="modal-dialog modal-lg">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Hotel Images</h5>
-                  <button className="btn-close" onClick={() => setShowImageModal(false)}></button>
-                </div>
-                <div className="modal-body text-center">
-                  <div className="mb-3">
-                    <img
-                      src={((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || [])[currentImageIndex]}
-                      alt={`Hotel Image ${currentImageIndex + 1}`}
-                      className="img-fluid rounded"
-                      style={{ maxHeight: "400px", objectFit: "contain" }}
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/500x300?text=Image+Not+Found";
-                      }}
-                    />
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <button className="btn btn-primary" onClick={handlePrevImage}>
-                      Previous
-                    </button>
-                    <span>
-                      Image {currentImageIndex + 1} of{" "}
-                      {((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || []).length}
-                    </span>
-                    <button className="btn btn-primary" onClick={handleNextImage}>
-                      Next
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="mb-4">
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h3 className="mb-0">Hotels</h3>
@@ -1706,7 +999,6 @@ const handleRemoveDining = async () => {
                     <th>City</th>
                     <th>Price</th>
                     <th>Rating</th>
-                    <th>Details Available</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -1721,35 +1013,13 @@ const handleRemoveDining = async () => {
                       <td>${h.Price || 0}</td>
                       <td>{h.Rating || 0}</td>
                       <td>
-                       <div className="mb-3 d-flex flex-wrap gap-2">
-  <button className="btn btn-outline-primary" >
-    Room Options 
-  </button>
-  <button className="btn btn-outline-primary" >
-    Amenities 
-  </button>
-  <button className="btn btn-outline-primary" >
-    Policies 
-  </button>
-  <button className="btn btn-outline-primary" >
-    Location 
-  </button>
-  <button className="btn btn-outline-primary" >
-    Similar Properties 
-  </button>
-  <button className="btn btn-outline-primary" >
-    Dining 
-  </button>
-</div>
-                      </td>
-                      <td>
                         <button className="btn btn-info btn-sm me-2" onClick={() => handleViewDetails(h)}>
                           View Details
                         </button>
                         <button className="btn btn-warning btn-sm me-2" onClick={() => handleEditHotel(h)}>
                           Edit
                         </button>
-                        <button className="btn btn-danger btn-sm mt-2" onClick={() => handleDeleteHotel(h.HotelId)}>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteHotel(h.HotelId)}>
                           Delete
                         </button>
                       </td>
@@ -1791,6 +1061,299 @@ const handleRemoveDining = async () => {
           )}
         </div>
 
+        {showAddHotelModal && (
+          <div className="modal show d-block bg-dark bg-opacity-50">
+            <div className="modal-dialog modal-xl">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">{editHotel ? "Edit Hotel" : "Add Hotel"}</h5>
+                  <button className="btn-close" onClick={handleCloseAddHotelModal}></button>
+                </div>
+                <div className="modal-body">
+                  <div className="row mb-3">
+                    <div className="col-md-6">
+                      <input
+                        type="text"
+                        className="form-control mb-2"
+                        placeholder="Hotel Name"
+                        value={editHotel ? editHotel.Hotel_Name : newHotel.Hotel_Name}
+                        onChange={(e) => {
+                          if (editHotel) {
+                            setEditHotel({ ...editHotel, Hotel_Name: e.target.value });
+                          } else {
+                            setNewHotel({ ...newHotel, Hotel_Name: e.target.value });
+                          }
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="form-control mb-2"
+                        placeholder="Nearest Location"
+                        value={editHotel ? editHotel.Nearest_Location : newHotel.Nearest_Location}
+                        onChange={(e) => {
+                          if (editHotel) {
+                            setEditHotel({ ...editHotel, Nearest_Location: e.target.value });
+                          } else {
+                            setNewHotel({ ...newHotel, Nearest_Location: e.target.value });
+                          }
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="form-control mb-2"
+                        placeholder="City"
+                        value={editHotel ? editHotel.City : newHotel.City}
+                        onChange={(e) => {
+                          if (editHotel) {
+                            setEditHotel({ ...editHotel, City: e.target.value });
+                          } else {
+                            setNewHotel({ ...newHotel, City: e.target.value });
+                          }
+                        }}
+                      />
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="form-control mb-2"
+                        placeholder="Rating"
+                        value={
+                          editHotel
+                            ? editHotel.Rating === 0
+                              ? ""
+                              : editHotel.Rating
+                            : newHotel.Rating === 0
+                            ? ""
+                            : newHotel.Rating
+                        }
+                        onChange={(e) => {
+                          const value = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
+                          if (editHotel) {
+                            setEditHotel({ ...editHotel, Rating: value });
+                          } else {
+                            setNewHotel({ ...newHotel, Rating: value });
+                          }
+                        }}
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control mb-2"
+                        placeholder="Price"
+                        value={
+                          editHotel
+                            ? editHotel.Price === 0
+                              ? ""
+                              : editHotel.Price
+                            : newHotel.Price === 0
+                            ? ""
+                            : newHotel.Price
+                        }
+                        onChange={(e) => {
+                          const value = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
+                          if (editHotel) {
+                            setEditHotel({ ...editHotel, Price: value });
+                          } else {
+                            setNewHotel({ ...newHotel, Price: value });
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <textarea
+                        className="form-control mb-2"
+                        placeholder="Hotel Description"
+                        value={editHotel ? editHotel.Hotel_Description : newHotel.Hotel_Description}
+                        onChange={(e) => {
+                          if (editHotel) {
+                            setEditHotel({ ...editHotel, Hotel_Description: e.target.value });
+                          } else {
+                            setNewHotel({ ...newHotel, Hotel_Description: e.target.value });
+                          }
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-2"
+                        placeholder="Reviews"
+                        value={editHotel ? editHotel.Reviews : newHotel.Reviews}
+                        onChange={(e) => {
+                          if (editHotel) {
+                            setEditHotel({ ...editHotel, Reviews: e.target.value });
+                          } else {
+                            setNewHotel({ ...newHotel, Reviews: e.target.value });
+                          }
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-2"
+                        placeholder="Amenities Description"
+                        value={editHotel ? editHotel.AmenitiesDescription : newHotel.AmenitiesDescription}
+                        onChange={(e) => {
+                          if (editHotel) {
+                            setEditHotel({ ...editHotel, AmenitiesDescription: e.target.value });
+                          } else {
+                            setNewHotel({ ...newHotel, AmenitiesDescription: e.target.value });
+                          }
+                        }}
+                      />
+                      <div className="form-check mb-2">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          checked={editHotel ? editHotel.FreeCancellation : newHotel.FreeCancellation}
+                          onChange={(e) => {
+                            if (editHotel) {
+                              setEditHotel({ ...editHotel, FreeCancellation: e.target.checked });
+                            } else {
+                              setNewHotel({ ...newHotel, FreeCancellation: e.target.checked });
+                            }
+                          }}
+                        />
+                        <label className="form-check-label">Free Cancellation</label>
+                      </div>
+                      <div className="form-check mb-2">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          checked={editHotel ? editHotel.BreakfastIncluded : newHotel.BreakfastIncluded}
+                          onChange={(e) => {
+                            if (editHotel) {
+                              setEditHotel({ ...editHotel, BreakfastIncluded: e.target.checked });
+                            } else {
+                              setNewHotel({ ...newHotel, BreakfastIncluded: e.target.checked });
+                            }
+                          }}
+                        />
+                        <label className="form-check-label">Breakfast Included</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <h6 className="fw-bold">Hotel Images</h6>
+                    <div className="d-flex align-items-center mb-2">
+                      <input
+                        type="text"
+                        className="form-control me-2"
+                        placeholder="Enter image URL"
+                        id="imageUrlInput"
+                        style={{ width: "300px" }}
+                      />
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          const input = document.getElementById("imageUrlInput");
+                          if (input) {
+                            handleAddImage(input.value);
+                            input.value = "";
+                          }
+                        }}
+                      >
+                        Add Image
+                      </button>
+                    </div>
+
+                    <div className="d-flex flex-wrap gap-2 mb-2">
+                      {((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || []).map((image, index) => (
+                        <div key={index} className="position-relative d-inline-block">
+                          <img
+                            src={image}
+                            alt={`Hotel ${index + 1}`}
+                            className="img-thumbnail"
+                            style={{ width: "100px", height: "100px", objectFit: "cover" }}
+                            onError={(e) => {
+                              e.target.src = "https://via.placeholder.com/100x100?text=Image+Error";
+                            }}
+                          />
+                          <button
+                            className="btn btn-danger btn-sm position-absolute top-0 end-0"
+                            style={{ transform: "translate(50%, -50%)" }}
+                            onClick={() => handleRemoveImage(index)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || []).length > 0 && (
+                      <button className="btn btn-outline-info btn-sm" onClick={handleOpenImageModal}>
+                        View Images ({((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || []).length})
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mb-3 d-flex flex-wrap gap-2">
+                    <button className="btn btn-outline-primary" onClick={() => setShowRoomOptionsModal(true)}>
+                      Room Options ({roomData.length})
+                    </button>
+                    <button className="btn btn-outline-primary" onClick={() => setShowAmenitiesModal(true)}>
+                      Amenities ({amenitiesData.length})
+                    </button>
+                    <button className="btn btn-outline-primary" onClick={() => setShowPoliciesModal(true)}>
+                      Policies ({policiesData.length})
+                    </button>
+                    <button className="btn btn-outline-primary" onClick={() => setShowLocationModal(true)}>
+                      Location ({locationData.length})
+                    </button>
+                    <button className="btn btn-outline-primary" onClick={() => setShowSimilarPropertiesModal(true)}>
+                      Similar Properties ({similarPropsData.length})
+                    </button>
+                    <button className="btn btn-outline-primary" onClick={() => setShowDiningModal(true)}>
+                      Dining {Object.keys(diningData).length > 0 ? "(1)" : "(0)"}
+                    </button>
+                  </div>
+
+                  <div className="text-end">
+                    <button className="btn btn-success me-2" onClick={editHotel ? handleUpdateHotel : handleSaveHotel}>
+                      {editHotel ? "Update" : "Save"}
+                    </button>
+                    <button className="btn btn-secondary" onClick={handleCloseAddHotelModal}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showImageModal && (
+          <div className="modal show d-block bg-dark bg-opacity-75">
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Hotel Images</h5>
+                  <button className="btn-close" onClick={() => setShowImageModal(false)}></button>
+                </div>
+                <div className="modal-body text-center">
+                  <div className="mb-3">
+                    <img
+                      src={((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || [])[currentImageIndex]}
+                      alt={`Hotel Image ${currentImageIndex + 1}`}
+                      className="img-fluid rounded"
+                      style={{ maxHeight: "400px", objectFit: "contain" }}
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/500x300?text=Image+Not+Found";
+                      }}
+                    />
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <button className="btn btn-primary" onClick={handlePrevImage}>
+                      Previous
+                    </button>
+                    <span>
+                      Image {currentImageIndex + 1} of{" "}
+                      {((editHotel ? editHotel.Hotel_Pictures : newHotel.Hotel_Pictures) || []).length}
+                    </span>
+                    <button className="btn btn-primary" onClick={handleNextImage}>
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {showSimilarPropertiesModal && (
           <div className="modal show d-block bg-dark bg-opacity-50">
             <div className="modal-dialog modal-lg">
@@ -1866,10 +1429,7 @@ const handleRemoveDining = async () => {
                           setSimilarPropsData(newSP);
                         }}
                       />
-                      <button 
-                        className="btn btn-sm btn-danger" 
-                        onClick={() => handleRemoveSimilarProperty(idx)}
-                      >
+                      <button className="btn btn-sm btn-danger" onClick={() => handleRemoveSimilarProperty(idx)}>
                         Remove
                       </button>
                     </div>
@@ -1883,7 +1443,6 @@ const handleRemoveDining = async () => {
           </div>
         )}
 
-  
         {showRoomOptionsModal && (
           <div className="modal show d-block bg-dark bg-opacity-50">
             <div className="modal-dialog modal-lg">
@@ -2071,33 +1630,35 @@ const handleRemoveDining = async () => {
                           setRoomData(newRooms);
                         }}
                       />
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleRemoveRoom(idx)}
-                      >
+                      <button className="btn btn-sm btn-danger" onClick={() => handleRemoveRoom(idx)}>
                         Remove Room
                       </button>
                     </div>
                   ))}
                   <button
                     className="btn btn-sm btn-outline-primary"
-                    onClick={() => setRoomData([...roomData, {
-                      Room_Image: "",
-                      Room_Type: "",
-                      Price: 0,
-                      Reviews_Count: 0,
-                      Reviews_Description: "",
-                      Reviewer_Name: "",
-                      Review_Date: "",
-                      Rating: 0,
-                      Selectroom_count: 0,
-                      Available_Rooms: 0,
-                      MaximumGuest_Count: 0,
-                      Sqft: 0,
-                      Bed_Count: 0,
-                      Bathroom_Count: 0,
-                      Room_Facility_Description: ""
-                    }])}
+                    onClick={() =>
+                      setRoomData([
+                        ...roomData,
+                        {
+                          Room_Image: "",
+                          Room_Type: "",
+                          Price: 0,
+                          Reviews_Count: 0,
+                          Reviews_Description: "",
+                          Reviewer_Name: "",
+                          Review_Date: "",
+                          Rating: 0,
+                          Selectroom_count: 0,
+                          Available_Rooms: 0,
+                          MaximumGuest_Count: 0,
+                          Sqft: 0,
+                          Bed_Count: 0,
+                          Bathroom_Count: 0,
+                          Room_Facility_Description: "",
+                        },
+                      ])
+                    }
                   >
                     + Add Room
                   </button>
@@ -2107,7 +1668,6 @@ const handleRemoveDining = async () => {
           </div>
         )}
 
-    
         {showAmenitiesModal && (
           <div className="modal show d-block bg-dark bg-opacity-50">
             <div className="modal-dialog modal-lg">
@@ -2139,10 +1699,7 @@ const handleRemoveDining = async () => {
                           setAmenitiesData(newAmenities);
                         }}
                       />
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleRemoveAmenity(idx)}
-                      >
+                      <button className="btn btn-sm btn-danger" onClick={() => handleRemoveAmenity(idx)}>
                         Remove
                       </button>
                     </div>
@@ -2159,359 +1716,345 @@ const handleRemoveDining = async () => {
           </div>
         )}
 
-      
-    
-{showPoliciesModal && (
-  <div className="modal show d-block bg-dark bg-opacity-50">
-    <div className="modal-dialog modal-lg">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">Policies</h5>
-          <button className="btn-close" onClick={() => setShowPoliciesModal(false)}></button>
-        </div>
-        <div className="modal-body">
-          {policiesData.length > 0 ? (
-            policiesData.map((p, idx) => (
-              <div key={idx} className="mb-2 border p-2 rounded">
-                <input
-                  className="form-control mb-1"
-                  placeholder="Check-In Time"
-                  value={p.CheckInTime || ""}
-                  onChange={(e) => {
-                    const newPolicies = [...policiesData];
-                    newPolicies[idx].CheckInTime = e.target.value;
-                    setPoliciesData(newPolicies);
-                  }}
-                />
-                <input
-                  className="form-control mb-1"
-                  placeholder="Check-Out Time"
-                  value={p.CheckOutTime || ""}
-                  onChange={(e) => {
-                    const newPolicies = [...policiesData];
-                    newPolicies[idx].CheckOutTime = e.target.value;
-                    setPoliciesData(newPolicies);
-                  }}
-                />
-                <textarea
-                  className="form-control mb-1"
-                  placeholder="Guest Policy"
-                  value={p.GuestPolicy || ""}
-                  onChange={(e) => {
-                    const newPolicies = [...policiesData];
-                    newPolicies[idx].GuestPolicy = e.target.value;
-                    setPoliciesData(newPolicies);
-                  }}
-                />
-                <textarea
-                  className="form-control mb-1"
-                  placeholder="Cancellation Policy"
-                  value={p.CancellationPolicy || ""}
-                  onChange={(e) => {
-                    const newPolicies = [...policiesData];
-                    newPolicies[idx].CancellationPolicy = e.target.value;
-                    setPoliciesData(newPolicies);
-                  }}
-                />
-                <textarea
-                  className="form-control mb-1"
-                  placeholder="ID Proof Policy"
-                  value={p.IdProofPolicy || ""}
-                  onChange={(e) => {
-                    const newPolicies = [...policiesData];
-                    newPolicies[idx].IdProofPolicy = e.target.value;
-                    setPoliciesData(newPolicies);
-                  }}
-                />
-                <textarea
-                  className="form-control mb-1"
-                  placeholder="Additional Notes"
-                  value={p.AdditionalNotes || ""}
-                  onChange={(e) => {
-                    const newPolicies = [...policiesData];
-                    newPolicies[idx].AdditionalNotes = e.target.value;
-                    setPoliciesData(newPolicies);
-                  }}
-                />
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={() => handleRemovePolicy(idx)}
-                >
-                  Remove
-                </button>
+        {showPoliciesModal && (
+          <div className="modal show d-block bg-dark bg-opacity-50">
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Policies</h5>
+                  <button className="btn-close" onClick={() => setShowPoliciesModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  {policiesData.length > 0 ? (
+                    policiesData.map((p, idx) => (
+                      <div key={idx} className="mb-2 border p-2 rounded">
+                        <input
+                          className="form-control mb-1"
+                          placeholder="Check-In Time"
+                          value={p.CheckInTime || ""}
+                          onChange={(e) => {
+                            const newPolicies = [...policiesData];
+                            newPolicies[idx].CheckInTime = e.target.value;
+                            setPoliciesData(newPolicies);
+                          }}
+                        />
+                        <input
+                          className="form-control mb-1"
+                          placeholder="Check-Out Time"
+                          value={p.CheckOutTime || ""}
+                          onChange={(e) => {
+                            const newPolicies = [...policiesData];
+                            newPolicies[idx].CheckOutTime = e.target.value;
+                            setPoliciesData(newPolicies);
+                          }}
+                        />
+                        <textarea
+                          className="form-control mb-1"
+                          placeholder="Guest Policy"
+                          value={p.GuestPolicy || ""}
+                          onChange={(e) => {
+                            const newPolicies = [...policiesData];
+                            newPolicies[idx].GuestPolicy = e.target.value;
+                            setPoliciesData(newPolicies);
+                          }}
+                        />
+                        <textarea
+                          className="form-control mb-1"
+                          placeholder="Cancellation Policy"
+                          value={p.CancellationPolicy || ""}
+                          onChange={(e) => {
+                            const newPolicies = [...policiesData];
+                            newPolicies[idx].CancellationPolicy = e.target.value;
+                            setPoliciesData(newPolicies);
+                          }}
+                        />
+                        <textarea
+                          className="form-control mb-1"
+                          placeholder="ID Proof Policy"
+                          value={p.IdProofPolicy || ""}
+                          onChange={(e) => {
+                            const newPolicies = [...policiesData];
+                            newPolicies[idx].IdProofPolicy = e.target.value;
+                            setPoliciesData(newPolicies);
+                          }}
+                        />
+                        <textarea
+                          className="form-control mb-1"
+                          placeholder="Additional Notes"
+                          value={p.AdditionalNotes || ""}
+                          onChange={(e) => {
+                            const newPolicies = [...policiesData];
+                            newPolicies[idx].AdditionalNotes = e.target.value;
+                            setPoliciesData(newPolicies);
+                          }}
+                        />
+                        <button className="btn btn-sm btn-danger" onClick={() => handleRemovePolicy(idx)}>
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="mb-2 border p-2 rounded">
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Check-In Time"
+                        value=""
+                        onChange={(e) => {
+                          setPoliciesData([{ CheckInTime: e.target.value }]);
+                        }}
+                      />
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Check-Out Time"
+                        value=""
+                        onChange={(e) => {
+                          setPoliciesData([{ ...policiesData[0], CheckOutTime: e.target.value }]);
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-1"
+                        placeholder="Guest Policy"
+                        value=""
+                        onChange={(e) => {
+                          setPoliciesData([{ ...policiesData[0], GuestPolicy: e.target.value }]);
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-1"
+                        placeholder="Cancellation Policy"
+                        value=""
+                        onChange={(e) => {
+                          setPoliciesData([{ ...policiesData[0], CancellationPolicy: e.target.value }]);
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-1"
+                        placeholder="ID Proof Policy"
+                        value=""
+                        onChange={(e) => {
+                          setPoliciesData([{ ...policiesData[0], IdProofPolicy: e.target.value }]);
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-1"
+                        placeholder="Additional Notes"
+                        value=""
+                        onChange={(e) => {
+                          setPoliciesData([{ ...policiesData[0], AdditionalNotes: e.target.value }]);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            ))
-          ) : (
-            <div className="mb-2 border p-2 rounded">
-              <input
-                className="form-control mb-1"
-                placeholder="Check-In Time"
-                value=""
-                onChange={(e) => {
-                  setPoliciesData([{ CheckInTime: e.target.value }]);
-                }}
-              />
-              <input
-                className="form-control mb-1"
-                placeholder="Check-Out Time"
-                value=""
-                onChange={(e) => {
-                  setPoliciesData([{ ...policiesData[0], CheckOutTime: e.target.value }]);
-                }}
-              />
-              <textarea
-                className="form-control mb-1"
-                placeholder="Guest Policy"
-                value=""
-                onChange={(e) => {
-                  setPoliciesData([{ ...policiesData[0], GuestPolicy: e.target.value }]);
-                }}
-              />
-              <textarea
-                className="form-control mb-1"
-                placeholder="Cancellation Policy"
-                value=""
-                onChange={(e) => {
-                  setPoliciesData([{ ...policiesData[0], CancellationPolicy: e.target.value }]);
-                }}
-              />
-              <textarea
-                className="form-control mb-1"
-                placeholder="ID Proof Policy"
-                value=""
-                onChange={(e) => {
-                  setPoliciesData([{ ...policiesData[0], IdProofPolicy: e.target.value }]);
-                }}
-              />
-              <textarea
-                className="form-control mb-1"
-                placeholder="Additional Notes"
-                value=""
-                onChange={(e) => {
-                  setPoliciesData([{ ...policiesData[0], AdditionalNotes: e.target.value }]);
-                }}
-              />
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+          </div>
+        )}
 
-       
-      
-{showLocationModal && (
-  <div className="modal show d-block bg-dark bg-opacity-50">
-    <div className="modal-dialog modal-lg">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">Location Details</h5>
-          <button className="btn-close" onClick={() => setShowLocationModal(false)}></button>
-        </div>
-        <div className="modal-body">
-          {locationData.length > 0 ? (
-            locationData.map((loc, idx) => (
-              <div key={idx} className="mb-2 border p-2 rounded">
-                <input
-                  className="form-control mb-1"
-                  placeholder="Address"
-                  value={loc.Address || ""}
-                  onChange={(e) => {
-                    const newLocations = [...locationData];
-                    newLocations[idx].Address = e.target.value;
-                    setLocationData(newLocations);
-                  }}
-                />
-                <input
-                  className="form-control mb-1"
-                  placeholder="Nearby Landmarks"
-                  value={loc.NearbyLandmarks || ""}
-                  onChange={(e) => {
-                    const newLocations = [...locationData];
-                    newLocations[idx].NearbyLandmarks = e.target.value;
-                    setLocationData(newLocations);
-                  }}
-                />
-                <input
-                  className="form-control mb-1"
-                  placeholder="Map URL"
-                  value={loc.MapUrl || ""}
-                  onChange={(e) => {
-                    const newLocations = [...locationData];
-                    newLocations[idx].MapUrl = e.target.value;
-                    setLocationData(newLocations);
-                  }}
-                />
-                <input
-                  className="form-control mb-1"
-                  placeholder="Embed URL"
-                  value={loc.EmbedUrl || ""}
-                  onChange={(e) => {
-                    const newLocations = [...locationData];
-                    newLocations[idx].EmbedUrl = e.target.value;
-                    setLocationData(newLocations);
-                  }}
-                />
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={() => handleRemoveLocation(idx)}
-                >
-                  Remove
-                </button>
+        {showLocationModal && (
+          <div className="modal show d-block bg-dark bg-opacity-50">
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Location Details</h5>
+                  <button className="btn-close" onClick={() => setShowLocationModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  {locationData.length > 0 ? (
+                    locationData.map((loc, idx) => (
+                      <div key={idx} className="mb-2 border p-2 rounded">
+                        <input
+                          className="form-control mb-1"
+                          placeholder="Address"
+                          value={loc.Address || ""}
+                          onChange={(e) => {
+                            const newLocations = [...locationData];
+                            newLocations[idx].Address = e.target.value;
+                            setLocationData(newLocations);
+                          }}
+                        />
+                        <input
+                          className="form-control mb-1"
+                          placeholder="Nearby Landmarks"
+                          value={loc.NearbyLandmarks || ""}
+                          onChange={(e) => {
+                            const newLocations = [...locationData];
+                            newLocations[idx].NearbyLandmarks = e.target.value;
+                            setLocationData(newLocations);
+                          }}
+                        />
+                        <input
+                          className="form-control mb-1"
+                          placeholder="Map URL"
+                          value={loc.MapUrl || ""}
+                          onChange={(e) => {
+                            const newLocations = [...locationData];
+                            newLocations[idx].MapUrl = e.target.value;
+                            setLocationData(newLocations);
+                          }}
+                        />
+                        <input
+                          className="form-control mb-1"
+                          placeholder="Embed URL"
+                          value={loc.EmbedUrl || ""}
+                          onChange={(e) => {
+                            const newLocations = [...locationData];
+                            newLocations[idx].EmbedUrl = e.target.value;
+                            setLocationData(newLocations);
+                          }}
+                        />
+                        <button className="btn btn-sm btn-danger" onClick={() => handleRemoveLocation(idx)}>
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="mb-2 border p-2 rounded">
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Address"
+                        value=""
+                        onChange={(e) => {
+                          setLocationData([{ Address: e.target.value }]);
+                        }}
+                      />
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Nearby Landmarks"
+                        value=""
+                        onChange={(e) => {
+                          setLocationData([{ ...locationData[0], NearbyLandmarks: e.target.value }]);
+                        }}
+                      />
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Map URL"
+                        value=""
+                        onChange={(e) => {
+                          setLocationData([{ ...locationData[0], MapUrl: e.target.value }]);
+                        }}
+                      />
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Embed URL"
+                        value=""
+                        onChange={(e) => {
+                          setLocationData([{ ...locationData[0], EmbedUrl: e.target.value }]);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            ))
-          ) : (
-            <div className="mb-2 border p-2 rounded">
-              <input
-                className="form-control mb-1"
-                placeholder="Address"
-                value=""
-                onChange={(e) => {
-                  setLocationData([{ Address: e.target.value }]);
-                }}
-              />
-              <input
-                className="form-control mb-1"
-                placeholder="Nearby Landmarks"
-                value=""
-                onChange={(e) => {
-                  setLocationData([{ ...locationData[0], NearbyLandmarks: e.target.value }]);
-                }}
-              />
-              <input
-                className="form-control mb-1"
-                placeholder="Map URL"
-                value=""
-                onChange={(e) => {
-                  setLocationData([{ ...locationData[0], MapUrl: e.target.value }]);
-                }}
-              />
-              <input
-                className="form-control mb-1"
-                placeholder="Embed URL"
-                value=""
-                onChange={(e) => {
-                  setLocationData([{ ...locationData[0], EmbedUrl: e.target.value }]);
-                }}
-              />
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+          </div>
+        )}
 
+        {showDiningModal && (
+          <div className="modal show d-block bg-dark bg-opacity-50">
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Dining Information</h5>
+                  <button className="btn-close" onClick={() => setShowDiningModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  {Object.keys(diningData).length > 0 ? (
+                    <div className="mb-2 border p-2 rounded">
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Dining Experience"
+                        value={diningData.DiningExperience || ""}
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, DiningExperience: e.target.value });
+                        }}
+                      />
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Meal Options (optional)"
+                        value={diningData.MealOptions || ""}
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, MealOptions: e.target.value });
+                        }}
+                      />
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Restaurant Hours"
+                        value={diningData.RestaurantHours || ""}
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, RestaurantHours: e.target.value });
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-1"
+                        placeholder="Restaurant Description"
+                        value={diningData.RestaurantDescription || ""}
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, RestaurantDescription: e.target.value });
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-1"
+                        placeholder="Special Features (optional)"
+                        value={diningData.SpecialFeatures || ""}
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, SpecialFeatures: e.target.value });
+                        }}
+                      />
+                      <button className="btn btn-sm btn-danger" onClick={handleRemoveDining}>
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mb-2 border p-2 rounded">
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Dining Experience"
+                        value=""
+                        onChange={(e) => {
+                          setDiningData({ DiningExperience: e.target.value });
+                        }}
+                      />
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Meal Options (optional)"
+                        value=""
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, MealOptions: e.target.value });
+                        }}
+                      />
+                      <input
+                        className="form-control mb-1"
+                        placeholder="Restaurant Hours"
+                        value=""
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, RestaurantHours: e.target.value });
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-1"
+                        placeholder="Restaurant Description"
+                        value=""
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, RestaurantDescription: e.target.value });
+                        }}
+                      />
+                      <textarea
+                        className="form-control mb-1"
+                        placeholder="Special Features (optional)"
+                        value=""
+                        onChange={(e) => {
+                          setDiningData({ ...diningData, SpecialFeatures: e.target.value });
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-{showDiningModal && (
-  <div className="modal show d-block bg-dark bg-opacity-50">
-    <div className="modal-dialog modal-lg">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">Dining Information</h5>
-          <button className="btn-close" onClick={() => setShowDiningModal(false)}></button>
-        </div>
-        <div className="modal-body">
-          {Object.keys(diningData).length > 0 ? (
-            <div className="mb-2 border p-2 rounded">
-              <input
-                className="form-control mb-1"
-                placeholder="Dining Experience"
-                value={diningData.DiningExperience || ""}
-                onChange={(e) => {
-                  setDiningData({ ...diningData, DiningExperience: e.target.value });
-                }}
-              />
-              <input
-                className="form-control mb-1"
-                placeholder="Meal Options (optional)"
-                value={diningData.MealOptions || ""}
-                onChange={(e) => {
-                  setDiningData({ ...diningData, MealOptions: e.target.value });
-                }}
-              />
-              <input
-                className="form-control mb-1"
-                placeholder="Restaurant Hours"
-                value={diningData.RestaurantHours || ""}
-                onChange={(e) => {
-                  setDiningData({ ...diningData, RestaurantHours: e.target.value });
-                }}
-              />
-              <textarea
-                className="form-control mb-1"
-                placeholder="Restaurant Description"
-                value={diningData.RestaurantDescription || ""}
-                onChange={(e) => {
-                  setDiningData({ ...diningData, RestaurantDescription: e.target.value });
-                }}
-              />
-              <textarea
-                className="form-control mb-1"
-                placeholder="Special Features (optional)"
-                value={diningData.SpecialFeatures || ""}
-                onChange={(e) => {
-                  setDiningData({ ...diningData, SpecialFeatures: e.target.value });
-                }}
-              />
-              <button
-                className="btn btn-sm btn-danger"
-                onClick={handleRemoveDining}
-              >
-                Remove
-              </button>
-            </div>
-          ) : (
-            <div className="mb-2 border p-2 rounded">
-              <input
-                className="form-control mb-1"
-                placeholder="Dining Experience"
-                value=""
-                onChange={(e) => {
-                  setDiningData({ DiningExperience: e.target.value });
-                }}
-              />
-              <input
-                className="form-control mb-1"
-                placeholder="Meal Options (optional)"
-                value=""
-                onChange={(e) => {
-                  setDiningData({ ...diningData, MealOptions: e.target.value });
-                }}
-              />
-              <input
-                className="form-control mb-1"
-                placeholder="Restaurant Hours"
-                value=""
-                onChange={(e) => {
-                  setDiningData({ ...diningData, RestaurantHours: e.target.value });
-                }}
-              />
-              <textarea
-                className="form-control mb-1"
-                placeholder="Restaurant Description"
-                value=""
-                onChange={(e) => {
-                  setDiningData({ ...diningData, RestaurantDescription: e.target.value });
-                }}
-              />
-              <textarea
-                className="form-control mb-1"
-                placeholder="Special Features (optional)"
-                value=""
-                onChange={(e) => {
-                  setDiningData({ ...diningData, SpecialFeatures: e.target.value });
-                }}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-       
         {showSearchModal && (
           <div className="modal show d-block bg-dark bg-opacity-50">
             <div className="modal-dialog">
@@ -2598,7 +2141,6 @@ const handleRemoveDining = async () => {
           </div>
         )}
 
-        
         {showDetailsModal && selectedHotelDetails && (
           <div className="modal show d-block bg-dark bg-opacity-50">
             <div className="modal-dialog modal-xl">
@@ -2657,7 +2199,6 @@ const handleRemoveDining = async () => {
                         </div>
                       )}
 
-                 
                       <div className="col-12 mb-4">
                         <h6 className="fw-bold text-primary">Basic Information</h6>
                         <div className="row">
@@ -2692,33 +2233,47 @@ const handleRemoveDining = async () => {
                         </p>
                       </div>
 
-                      {selectedHotelDetails.rooms?.filter(room => room.HotelId === selectedHotelDetails.HotelId).length > 0 && (
+                      {selectedHotelDetails.rooms?.filter((room) => room.HotelId === selectedHotelDetails.HotelId).length >
+                        0 && (
                         <div className="col-12 mb-4">
-                          <h6 className="fw-bold text-success">Room Options ({selectedHotelDetails.rooms.filter(room => room.HotelId === selectedHotelDetails.HotelId).length})</h6>
+                          <h6 className="fw-bold text-success">
+                            Room Options (
+                            {
+                              selectedHotelDetails.rooms.filter((room) => room.HotelId === selectedHotelDetails.HotelId)
+                                .length
+                            }
+                            )
+                          </h6>
                           <div className="row">
                             {selectedHotelDetails.rooms
-                              .filter(room => room.HotelId === selectedHotelDetails.HotelId)
+                              .filter((room) => room.HotelId === selectedHotelDetails.HotelId)
                               .map((room, idx) => (
                                 <div key={room.RoomId || idx} className="col-md-6 mb-3">
                                   <div className="card">
                                     {room.Room_Image && (
-                                      <img 
-                                        src={room.Room_Image} 
+                                      <img
+                                        src={room.Room_Image}
                                         alt={room.Room_Type}
                                         className="card-img-top"
-                                        style={{ height: '200px', objectFit: 'cover' }}
+                                        style={{ height: "200px", objectFit: "cover" }}
                                         onError={(e) => {
-                                          e.target.src = 'https://via.placeholder.com/300x200?text=Room+Image';
+                                          e.target.src = "https://via.placeholder.com/300x200?text=Room+Image";
                                         }}
                                       />
                                     )}
                                     <div className="card-body">
                                       <h6 className="card-title">{room.Room_Type}</h6>
                                       <p className="card-text">
-                                        <strong>Price:</strong> ${room.Price}<br/>
-                                        <strong>Rating:</strong> {room.Rating} ⭐ ({room.Reviews_Count} reviews)<br/>
-                                        <strong>Guests:</strong> {room.MaximumGuest_Count} | <strong>Beds:</strong> {room.Bed_Count}<br/>
-                                        <strong>Bathrooms:</strong> {room.Bathroom_Count} | <strong>Size:</strong> {room.Sqft} sqft<br/>
+                                        <strong>Price:</strong> ${room.Price}
+                                        <br />
+                                        <strong>Rating:</strong> {room.Rating} ⭐ ({room.Reviews_Count} reviews)
+                                        <br />
+                                        <strong>Guests:</strong> {room.MaximumGuest_Count} | <strong>Beds:</strong>{" "}
+                                        {room.Bed_Count}
+                                        <br />
+                                        <strong>Bathrooms:</strong> {room.Bathroom_Count} | <strong>Size:</strong>{" "}
+                                        {room.Sqft} sqft
+                                        <br />
                                         <strong>Available:</strong> {room.Available_Rooms} rooms
                                       </p>
                                       {room.Reviews_Description && (
@@ -2730,19 +2285,20 @@ const handleRemoveDining = async () => {
                                       )}
                                       {room.Room_Facility_Description && (
                                         <p className="card-text">
-                                          <small><strong>Facilities:</strong> {room.Room_Facility_Description}</small>
+                                          <small>
+                                            <strong>Facilities:</strong> {room.Room_Facility_Description}
+                                          </small>
                                         </p>
                                       )}
                                     </div>
                                   </div>
                                 </div>
-                              ))
-                            }
+                              ))}
                           </div>
                         </div>
                       )}
 
-                     {selectedHotelDetails.amenities?.filter((amenity) => amenity.HotelId === selectedHotelDetails.HotelId)
+                      {selectedHotelDetails.amenities?.filter((amenity) => amenity.HotelId === selectedHotelDetails.HotelId)
                         .length > 0 && (
                         <div className="col-md-6 mb-4">
                           <h6 className="fw-bold text-info">
@@ -2769,7 +2325,6 @@ const handleRemoveDining = async () => {
                         </div>
                       )}
 
-                      
                       {selectedHotelDetails.policies?.filter((policy) => policy.HotelId === selectedHotelDetails.HotelId)
                         .length > 0 && (
                         <div className="col-md-6 mb-4">
@@ -2810,9 +2365,9 @@ const handleRemoveDining = async () => {
                         </div>
                       )}
 
-                      
-                      {selectedHotelDetails.locations?.filter((location) => location.HotelId === selectedHotelDetails.HotelId)
-                        .length > 0 && (
+                      {selectedHotelDetails.locations?.filter(
+                        (location) => location.HotelId === selectedHotelDetails.HotelId
+                      ).length > 0 && (
                         <div className="col-md-6 mb-4">
                           <h6 className="fw-bold text-primary">
                             Location Details (
@@ -2845,7 +2400,6 @@ const handleRemoveDining = async () => {
                         </div>
                       )}
 
-                      
                       {selectedHotelDetails.dining &&
                         (() => {
                           const hotelDining = (
@@ -2896,8 +2450,9 @@ const handleRemoveDining = async () => {
                           ) : null;
                         })()}
 
-                      {selectedHotelDetails.similarProperties?.filter((prop) => prop.HotelId === selectedHotelDetails.HotelId)
-                        .length > 0 && (
+                      {selectedHotelDetails.similarProperties?.filter(
+                        (prop) => prop.HotelId === selectedHotelDetails.HotelId
+                      ).length > 0 && (
                         <div className="col-12 mb-4">
                           <h6 className="fw-bold text-dark">
                             Similar Properties (

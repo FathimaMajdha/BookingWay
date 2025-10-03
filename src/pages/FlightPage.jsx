@@ -16,7 +16,6 @@ const FlightPage = () => {
   const [fares, setFares] = useState([]);
   const [fareFlight, setFareFlight] = useState(null);
   const [selectedFlight, setSelectedFlight] = useState(null);
-  const [flightDetails, setFlightDetails] = useState([]);
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedFare, setSelectedFare] = useState(null);
@@ -32,11 +31,21 @@ const FlightPage = () => {
 
   const fetchFares = async (flightId) => {
     try {
-      const response = await axiosInstance.get(`/FlightFare/flightFare/${flightId}`);
-      const faresData = response.data?.Data || response.data || [];
-      setFares(faresData);
+      console.log("Fetching fares for flight ID:", flightId);
+      const response = await axiosInstance.get(`/AdminFlightFare?flightId=${flightId}`);
+      console.log("Fares API response:", response.data);
+
+      if (response.data && response.data.Success) {
+        const faresData = response.data.Data || [];
+        setFares(faresData);
+        console.log("Fares data:", faresData);
+      } else {
+        console.warn("No fares found or API error:", response.data);
+        setFares([]);
+      }
     } catch (error) {
       console.error("Error fetching fares:", error);
+      toast.error("Failed to load fares");
       setFares([]);
     }
   };
@@ -95,8 +104,6 @@ const FlightPage = () => {
     passengerType: "Adults",
   });
 
-  const user = JSON.parse(localStorage.getItem("loggedUser")) || null;
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFlightData({ ...flightData, [name]: value });
@@ -145,7 +152,7 @@ const FlightPage = () => {
         return;
       }
 
-      const flightsResponse = await axiosInstance.get("/AdminFlights/flight", {
+      const flightsResponse = await axiosInstance.get("/admin/AdminFlight", {
         params: {
           source,
           destination,
@@ -164,6 +171,12 @@ const FlightPage = () => {
 
       const apiData = flightsResponse.data.Data || [];
       console.log("API flights data:", apiData);
+
+      if (apiData.length === 0) {
+        console.log("No flights data found");
+        setFlights([]);
+        return;
+      }
 
       const filtered = apiData.filter(
         (f) =>
@@ -226,6 +239,7 @@ const FlightPage = () => {
   const handleFlightSelect = (flight) => {
     setFareFlight(flight);
     setSelectedFlight(flight);
+    setSelectedFare(null);
     fetchFares(flight.FlightId);
     setShowFareModal(true);
 
@@ -241,7 +255,7 @@ const FlightPage = () => {
   const handleFareSelect = (fare) => {
     setSelectedFare(fare);
 
-    toast.info(` ${fare.FareName} fare selected!`, {
+    toast.info(`${fare.FareName} fare selected!`, {
       position: "top-right",
       autoClose: 2000,
       hideProgressBar: false,
@@ -259,7 +273,7 @@ const FlightPage = () => {
       return;
     }
 
-    toast.success(` Booking ${selectedFare.FareName} on ${fareFlight.Airline_Name}...`, {
+    toast.success(`Booking ${selectedFare.FareName} on ${fareFlight.Airline_Name}...`, {
       position: "top-right",
       autoClose: 2000,
       hideProgressBar: false,
@@ -292,8 +306,8 @@ const FlightPage = () => {
         draggable
         pauseOnHover
         theme="light"
+        style={{ zIndex: 9999 }}
       />
-
       <div style={{ minHeight: "100vh" }}>
         <div className="container-fluid mt-4 mt-md-5 px-3 px-md-4">
           <button
@@ -481,7 +495,7 @@ const FlightPage = () => {
                             className={`border rounded p-2 text-center cursor-pointer ${
                               flightData.adults === num ? "bg-primary text-white" : ""
                             }`}
-                            style={{ minWidth: "50px", flex: "1 0 auto" }}
+                            style={{ minWidth: "50px", flex: "1 0 auto", cursor: "pointer" }}
                             onClick={() => setFlightData((prev) => ({ ...prev, adults: num }))}
                           >
                             {num}
@@ -499,7 +513,7 @@ const FlightPage = () => {
                             className={`border rounded p-2 text-center cursor-pointer ${
                               flightData.children === num ? "bg-primary text-white" : ""
                             }`}
-                            style={{ minWidth: "50px", flex: "1 0 auto" }}
+                            style={{ minWidth: "50px", flex: "1 0 auto", cursor: "pointer" }}
                             onClick={() => setFlightData((prev) => ({ ...prev, children: num }))}
                           >
                             {num}
@@ -517,7 +531,7 @@ const FlightPage = () => {
                             className={`border rounded p-2 text-center cursor-pointer ${
                               flightData.infants === num ? "bg-primary text-white" : ""
                             }`}
-                            style={{ minWidth: "50px", flex: "1 0 auto" }}
+                            style={{ minWidth: "50px", flex: "1 0 auto", cursor: "pointer" }}
                             onClick={() => setFlightData((prev) => ({ ...prev, infants: num }))}
                           >
                             {num}
@@ -535,7 +549,7 @@ const FlightPage = () => {
                             className={`border rounded p-2 text-center cursor-pointer ${
                               flightData.travelClass === cls ? "bg-primary text-white" : ""
                             }`}
-                            style={{ minWidth: "120px", flex: "1 0 auto" }}
+                            style={{ minWidth: "120px", flex: "1 0 auto", cursor: "pointer" }}
                             onClick={() => setFlightData((prev) => ({ ...prev, travelClass: cls }))}
                           >
                             {cls}
@@ -837,37 +851,42 @@ const FlightPage = () => {
                           <div className="row g-3 mt-3">
                             {fares.length === 0 ? (
                               <div className="col-12">
-                                <p className="text-muted text-center">No fares available for this flight.</p>
+                                <div className="alert alert-info text-center">
+                                  <p className="mb-0">No additional fares available for this flight.</p>
+                                  <small>Base fare: ₹{fareFlight.Base_Fare}</small>
+                                </div>
                               </div>
                             ) : (
-                              fares.map((fare) => (
-                                <div className="col-12 col-sm-6 col-lg-4" key={fare.FareId}>
-                                  <div
-                                    className={`border rounded p-3 h-100 shadow-sm ${
-                                      selectedFare?.FareId === fare.FareId ? "border-danger border-2" : "border-secondary"
-                                    }`}
-                                    style={{ cursor: "pointer" }}
-                                    onClick={() => handleFareSelect(fare)}
-                                  >
-                                    <h6 className="fw-bold">{fare.FareName}</h6>
-                                    <p className="text-danger fw-bold fs-5">₹{fare.Price} / Adult</p>
-                                    <div className="small">
-                                      <div>
-                                        <strong>Baggage:</strong> {fare.Baggage}
-                                      </div>
-                                      <div>
-                                        <strong>Refund:</strong> {fare.Refund}
-                                      </div>
-                                      <div>
-                                        <strong>Change Fee:</strong> {fare.ChangeFee}
-                                      </div>
-                                      <div>
-                                        <strong>Meals:</strong> {fare.Meals}
+                              <>
+                                {fares.map((fare) => (
+                                  <div className="col-12 col-sm-6 col-lg-4" key={fare.FareId}>
+                                    <div
+                                      className={`border rounded p-3 h-100 shadow-sm ${
+                                        selectedFare?.FareId === fare.FareId ? "border-danger border-2" : "border-secondary"
+                                      }`}
+                                      style={{ cursor: "pointer" }}
+                                      onClick={() => handleFareSelect(fare)}
+                                    >
+                                      <h6 className="fw-bold">{fare.FareName}</h6>
+                                      <p className="text-danger fw-bold fs-5">₹{fare.Price} / Adult</p>
+                                      <div className="small">
+                                        <div>
+                                          <strong>Baggage:</strong> {fare.Baggage}
+                                        </div>
+                                        <div>
+                                          <strong>Refund:</strong> {fare.Refund}
+                                        </div>
+                                        <div>
+                                          <strong>Change Fee:</strong> {fare.ChangeFee}
+                                        </div>
+                                        <div>
+                                          <strong>Meals:</strong> {fare.Meals}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))
+                                ))}
+                              </>
                             )}
                           </div>
                         </div>
