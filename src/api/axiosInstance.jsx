@@ -34,7 +34,7 @@ axiosInstance.interceptors.response.use(
       console.log('Token expired or invalid, redirecting to login...');
       localStorage.removeItem('token');
       localStorage.removeItem('loggedUser');
-      window.location.href = '/login';
+      window.location.href = '/';
     }
     
     return Promise.reject(error);

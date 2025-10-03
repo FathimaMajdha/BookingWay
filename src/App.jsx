@@ -18,7 +18,9 @@ import Users from "./AdminDashboard/Users.jsx";
 import Flight from "./AdminDashboard/Flight.jsx";
 import Hotel from "./AdminDashboard/Hotel.jsx";
 import Bookings from "./AdminDashboard/Bookings.jsx";
+
 function App() {
+  
   return (
     <div>
       <ToastContainer />
@@ -33,6 +35,7 @@ function App() {
         <Route path="/flightbooked" element={<FlightbookingPage />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/" element={<Home />} />
+       
         <Route path="/Hotels" element={<HotelPage />} />
         <Route path="/nav" element={<Navbar />} />
         <Route path="/bookings" element={<MyBookingPage />} />

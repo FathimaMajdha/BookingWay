@@ -416,7 +416,7 @@ const Navbar = () => {
                     Hotels
                   </a>
                   <button
-                    className="btn btn-outline-dark text-start py-3 fw-semibold rounded"
+                    className="btn btn-outline-dark text-start text-white py-3 fw-semibold rounded" style={{background: "#000957"}}
                     onClick={handleMyBookingsClick}
                   >
                     My Bookings
@@ -427,12 +427,13 @@ const Navbar = () => {
                   {user ? (
                     <div className="d-flex flex-column gap-3">
                       <div className="text-center mb-3">
-                        <FaUserCircle size={40} className="text-dark mb-2" />
-                        <h6 className="fw-bold mb-1">{user.username}</h6>
-                        <small className="text-muted">{user.role}</small>
+                        <FaUserCircle size={40} className=" mb-2" style={{color: "#000957"}}/>
+                        <h6 className="fw-bold mb-1" style={{color: "#000957"}}>{user.username}</h6>
+                        <small className="text-muted ">{user.role}</small>
                       </div>
                       <button
-                        className="btn btn-dark w-100 py-2 fw-semibold rounded"
+                        className="btn text-white  w-100 py-2 fw-semibold rounded"
+                        style={{background: "#000957"}}
                         onClick={() => {
                           if (user.role.toLowerCase() !== "admin") {
                             window.location.href = "/profile";
@@ -444,14 +445,14 @@ const Navbar = () => {
                       >
                         {user.role.toLowerCase() === "admin" ? "Admin Dashboard" : "My Profile"}
                       </button>
-                      <button className="btn btn-outline-dark w-100 py-2 fw-semibold rounded" onClick={handleLogout}>
+                      <button className="btn btn-outline-dark w-100 py-2 fw-semibold rounded" style={{color: "#000957"}} onClick={handleLogout}>
                         Logout
                       </button>
                     </div>
                   ) : (
                     <div className="d-flex flex-column gap-3">
                       <div className="bg-light p-4 rounded">
-                        <h5 className="text-center mb-3 fw-bold">{isLogin ? "Login" : "Signup"}</h5>
+                        <h5 className="text-center mb-3 fw-bold" style={{color: "#000957"}}>{isLogin ? "Login" : "Signup"}</h5>
                         <form onSubmit={handleSubmit}>
                           {!isLogin && (
                             <>
@@ -546,7 +547,7 @@ const Navbar = () => {
 
       <ToastContainer
         position="top-right"
-        autoClose={3000}
+        autoClose={10000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick

@@ -324,7 +324,7 @@ const Users = () => {
 
         <div className="table-responsive shadow rounded" style={{ width: "1000px" }}>
           <table className="table table-striped table-hover align-middle">
-            <thead className="table-dark text-center">
+            <thead className="table-primary text-center">
               <tr>
                 <th style={{ cursor: "pointer" }} onClick={() => handleSort("Username")}>
                   Username {getSortIcon("Username")}
@@ -380,7 +380,7 @@ const Users = () => {
                         </button>
                       </td>
                       <td>
-                        <button className="btn btn-sm btn-primary text-white" onClick={() => handleModalOpen(user)}>
+                        <button className="btn btn-sm  text-white" style={{background: "#000957"}} onClick={() => handleModalOpen(user)}>
                           View Details
                         </button>
                       </td>
@@ -452,7 +452,7 @@ const Users = () => {
           <div className="modal show fade d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
             <div className="modal-dialog modal-lg modal-dialog-scrollable">
               <div className="modal-content">
-                <div className="modal-header bg-primary text-white">
+                <div className="modal-header text-white" style={{background: "#000957"}}>
                   <h5 className="modal-title">User Details - {selectedUser.Username || selectedUser.name}</h5>
                   <button type="button" className="btn-close btn-close-white" onClick={handleModalClose}></button>
                 </div>
@@ -489,7 +489,7 @@ const Users = () => {
 
                   <hr />
 
-                  <h6 className="mt-3 mb-3 text-primary">
+                  <h6 className="mt-3 mb-3 " style={{color: "#000957"}}>
                     Booking History ({selectedUser.Bookings?.length || selectedUser.bookings?.length || 0})
                   </h6>
 

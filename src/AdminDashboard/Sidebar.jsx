@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 const Sidebar = () => {
   return (
-    <div className="d-flex flex-column p-3 bg-dark text-white " style={{ width: "250px", height: "2000px" }}>
+    <div className="d-flex flex-column p-3  text-white " style={{ width: "250px", height: "2000px" ,background: "#000957" }}>
       <h4 className="text-center mb-4">Admin</h4>
       <ul className="nav nav-pills flex-column mb-auto ">
         <li className="nav-item ">
